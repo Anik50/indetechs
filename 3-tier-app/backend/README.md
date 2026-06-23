@@ -8,13 +8,13 @@ The backend is a lightweight Node.js Express API listening on port `8080`.
 |---|---|---|
 | `/healthz` | GET | Container liveness |
 | `/readyz` | GET | Database-backed readiness check |
-| `/api/todos` | GET | List todos |
-| `/api/todos` | POST | Create todo |
-| `/api/todos/:id` | PATCH | Update completion state |
-| `/api/todos/:id` | DELETE | Delete todo |
+| `/api/tasks` | GET | List tasks |
+| `/api/tasks` | POST | Create task |
+| `/api/tasks/:id` | PATCH | Update completion state |
+| `/api/tasks/:id` | DELETE | Delete task |
 
 ## Build
 
 ```bash
-docker build -t docker.io/anik50/indetechs-todo-backend:v1 apps/todo-3tier/backend
+docker build -t docker.io/anik50/indetechs-ops-backend:v1 3-tier-app/backend
 ```

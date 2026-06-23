@@ -3,7 +3,7 @@ kind: NetworkPolicy
 metadata:
   name: allow-traefik-to-frontend
   labels:
-    app.kubernetes.io/name: todo
+    app.kubernetes.io/name: ops-portal
     app.kubernetes.io/part-of: indetechs-phase3
     app.kubernetes.io/component: frontend
 spec:

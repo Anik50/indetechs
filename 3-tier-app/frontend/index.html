@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Indetechs Todo App</title>
+  <title>Indetechs Operations Task Portal</title>
   <style>
     body { font-family: system-ui, sans-serif; margin: 0; background: #f4f6f8; color: #17202a; }
     main { max-width: 760px; margin: 48px auto; background: #fff; border-radius: 16px; padding: 28px; box-shadow: 0 10px 30px rgba(0,0,0,.08); }
@@ -21,23 +21,23 @@
 </head>
 <body>
   <main>
-    <h1>Indetechs 3-Tier Todo App</h1>
+    <h1>Indetechs 3-Tier Operations Task Portal</h1>
     <p class="meta">Frontend → Backend → PostgreSQL with persistent NFS storage</p>
 
-    <form id="todo-form">
-      <input id="todo-title" placeholder="Add a task" required />
+    <form id="task-form">
+      <input id="task-title" placeholder="Add a task" required />
       <button class="primary" type="submit">Add</button>
     </form>
 
     <p id="status" class="meta">Loading...</p>
-    <ul id="todos"></ul>
+    <ul id="tasks"></ul>
   </main>
 
   <script>
     const statusEl = document.getElementById('status');
-    const listEl = document.getElementById('todos');
-    const form = document.getElementById('todo-form');
-    const input = document.getElementById('todo-title');
+    const listEl = document.getElementById('tasks');
+    const form = document.getElementById('task-form');
+    const input = document.getElementById('task-title');
 
     async function api(path, options = {}) {
       const response = await fetch(path, {
@@ -48,41 +48,41 @@
       return response.json();
     }
 
-    async function loadTodos() {
+    async function loadOperations Tasks() {
       try {
-        const todos = await api('/api/todos');
+        const tasks = await api('/api/tasks');
         listEl.innerHTML = '';
-        todos.forEach(todo => {
+        tasks.forEach(task => {
           const li = document.createElement('li');
           const title = document.createElement('span');
-          title.textContent = todo.title;
-          if (todo.completed) title.className = 'done';
+          title.textContent = task.title;
+          if (task.completed) title.className = 'done';
 
           const actions = document.createElement('span');
           actions.className = 'actions';
 
           const toggle = document.createElement('button');
-          toggle.textContent = todo.completed ? 'Undo' : 'Done';
+          toggle.textContent = task.completed ? 'Undo' : 'Done';
           toggle.onclick = async () => {
-            await api(`/api/todos/${todo.id}`, {
+            await api(`/api/tasks/${task.id}`, {
               method: 'PATCH',
-              body: JSON.stringify({ completed: !todo.completed }),
+              body: JSON.stringify({ completed: !task.completed }),
             });
-            await loadTodos();
+            await loadOperations Tasks();
           };
 
           const remove = document.createElement('button');
           remove.textContent = 'Delete';
           remove.onclick = async () => {
-            await fetch(`/api/todos/${todo.id}`, { method: 'DELETE' });
-            await loadTodos();
+            await fetch(`/api/tasks/${task.id}`, { method: 'DELETE' });
+            await loadOperations Tasks();
           };
 
           actions.append(toggle, remove);
           li.append(title, actions);
           listEl.appendChild(li);
         });
-        statusEl.textContent = `${todos.length} item(s)`;
+        statusEl.textContent = `${tasks.length} item(s)`;
       } catch (err) {
         statusEl.textContent = `Error: ${err.message}`;
       }
@@ -92,12 +92,12 @@
       event.preventDefault();
       const title = input.value.trim();
       if (!title) return;
-      await api('/api/todos', { method: 'POST', body: JSON.stringify({ title }) });
+      await api('/api/tasks', { method: 'POST', body: JSON.stringify({ title }) });
       input.value = '';
-      await loadTodos();
+      await loadOperations Tasks();
     });
 
-    loadTodos();
+    loadOperations Tasks();
   </script>
 </body>
 </html>

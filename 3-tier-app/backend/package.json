@@ -1,5 +1,5 @@
 {
-  "name": "indetechs-todo-backend",
+  "name": "indetechs-ops-backend",
   "version": "1.0.0",
   "description": "Lightweight Express backend for the Indetechs 3-tier Kubernetes assessment app",
   "main": "server.js",

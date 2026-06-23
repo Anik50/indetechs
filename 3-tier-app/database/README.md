@@ -5,7 +5,7 @@ The database tier uses PostgreSQL with an initialization script and a Kubernetes
 ## Build
 
 ```bash
-docker build -t docker.io/anik50/indetechs-todo-database:v1 apps/todo-3tier/database
+docker build -t docker.io/anik50/indetechs-ops-database:v1 3-tier-app/database
 ```
 
 ## Persistence

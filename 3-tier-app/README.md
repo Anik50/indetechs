@@ -1,4 +1,4 @@
-# Todo 3-Tier Application
+# Operations Task 3-Tier Application
 
 This is the Phase 3 demonstration application for the production-grade Kubernetes cluster assessment.
 
@@ -16,9 +16,9 @@ This is the Phase 3 demonstration application for the production-grade Kubernete
 User/VPN
   -> 192.168.30.200
   -> Traefik LoadBalancer
-  -> todo-frontend service
-  -> todo-backend service
-  -> todo-database service
+  -> ops-frontend service
+  -> ops-backend service
+  -> ops-database service
   -> NFS-backed PostgreSQL PVC
 ```
 
@@ -41,6 +41,6 @@ bash scripts/verify-phase3.sh
 Test through Traefik:
 
 ```bash
-curl -H 'Host: todo.indetechs.local' http://192.168.30.200/
-curl -H 'Host: todo.indetechs.local' http://192.168.30.200/api/todos
+curl -H 'Host: ops.indetechs.local' http://192.168.30.200/
+curl -H 'Host: ops.indetechs.local' http://192.168.30.200/api/tasks
 ```

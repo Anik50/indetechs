@@ -12,5 +12,5 @@ The frontend is a small static UI served by `nginxinc/nginx-unprivileged` on por
 ## Build
 
 ```bash
-docker build -t docker.io/anik50/indetechs-todo-frontend:v1 apps/todo-3tier/frontend
+docker build -t docker.io/anik50/indetechs-ops-frontend:v1 3-tier-app/frontend
 ```
