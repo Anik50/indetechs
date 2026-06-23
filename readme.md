@@ -4,7 +4,7 @@
 
 This repository documents and stores manifests for a local production-style Kubernetes environment built on KVM virtual machines for the Indetechs Software Limited IT Operations Officer technical assessment.
 
-The environment is deployed on Proxmox VE using KVM/QEMU virtual machines. OPNsense provides routing/firewall functionality. Kubernetes is deployed using `kubeadm` with three control-plane nodes, two worker nodes, a dedicated NFS storage VM, Canal CNI, kube-vip for the Kubernetes API virtual IP, Metrics Server, Headlamp, and NFS CSI dynamic storage provisioning.
+The environment is deployed on Proxmox VE using KVM/QEMU virtual machines. OPNsense provides routing/firewall functionality and WireGuard VPN access into the private management subnet. Kubernetes is deployed using `kubeadm` with three control-plane nodes, two worker nodes, a dedicated NFS storage VM, Canal CNI, kube-vip for the Kubernetes API virtual IP, Metrics Server, Headlamp, and NFS CSI dynamic storage provisioning.
 
 ## Current Progress
 

@@ -67,6 +67,6 @@ kubemaster-1  kubemaster-2  kubemaster-3  worker-1  worker-2  nfs
 
 ## Design Notes
 
-The management network carries SSH, Kubernetes API, Headlamp dashboard access, and general node management traffic.
+The management network carries SSH, Kubernetes API, Headlamp dashboard access, and general node management traffic. Remote administrative access to this private subnet is provided through the WireGuard VPN configured on OPNsense; these services are not intended to be exposed directly to the public Internet.
 
 The storage network is isolated and only used for NFS traffic between Kubernetes nodes and the storage VM. Storage interfaces do not have a default gateway. This reduces unnecessary exposure of the NFS service and separates storage traffic from management/application traffic.

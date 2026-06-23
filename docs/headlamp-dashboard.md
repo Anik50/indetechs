@@ -59,6 +59,14 @@ Screenshot:
 screenshots/headlamp-workloads.png
 ```
 
-## Production Note
+## Access Control / Production Note
 
-For a real production environment, Headlamp should be placed behind a VPN, authenticated reverse proxy, or private gateway. RBAC should follow least privilege instead of broad cluster-admin access.
+Headlamp is not exposed directly to the public Internet. It is exposed only on the private management subnet:
+
+```text
+192.168.30.0/24
+```
+
+Remote administrative access to this subnet is provided through the WireGuard VPN configured on OPNsense. This means dashboard access is protected by the OPNsense firewall boundary and requires VPN access before the Headlamp NodePort can be reached.
+
+The current lab setup uses a Headlamp service account token for authentication. For a stricter production deployment, RBAC should be reduced from broad cluster-admin access to least-privilege roles, and Headlamp could additionally be placed behind an authenticated HTTPS reverse proxy.
