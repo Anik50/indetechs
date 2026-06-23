@@ -13,9 +13,9 @@ resources:
   - networkpolicy-allow-traefik.yaml
 
 images:
-  - name: docker.io/anik50/indetechs-todo-frontend
-    newTag: v1
-  - name: docker.io/anik50/indetechs-todo-backend
-    newTag: v1
-  - name: docker.io/anik50/indetechs-todo-database
-    newTag: v1
+  - name: docker.io/anik50/indetechs-ops-frontend
+    newTag: v2
+  - name: docker.io/anik50/indetechs-ops-backend
+    newTag: v2
+  - name: docker.io/anik50/indetechs-ops-database
+    newTag: v2

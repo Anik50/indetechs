@@ -1,6 +1,6 @@
 # Phase 3 Workload Manifests
 
-These manifests deploy the 3-tier Todo application into the existing `app-prod` namespace.
+These manifests deploy the 3-tier Task application into the existing `app-prod` namespace.
 
 ## Required existing resources
 
@@ -37,11 +37,11 @@ bash scripts/verify-phase3.sh
 Use Traefik's kube-vip LoadBalancer IP:
 
 ```bash
-curl -H 'Host: todo.indetechs.local' http://192.168.30.200/
+curl -H 'Host: ops.indetechs.local' http://192.168.30.200/
 ```
 
 Or add a local hosts entry on your admin workstation:
 
 ```text
-192.168.30.200 todo.indetechs.local
+192.168.30.200 ops.indetechs.local
 ```

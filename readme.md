@@ -12,7 +12,7 @@ The environment is deployed on Proxmox VE using KVM/QEMU virtual machines. OPNse
 | -------- | --------------------------------------------------------------- | --------------------- |
 | Phase 1  | KVM infrastructure setup                                        | Complete              |
 | Phase 2  | Kubernetes cluster setup, storage, networking/security controls | Complete              |
-| Phase 3  | 3-tier application deployment                                   | In Progress           |
+| Phase 3 - Application Deployment: Complete           |
 | Phase 4+ | Optional automation, observability, DR, CI/CD, testing          | Pending / Future work |
 
 ## High-Level Architecture
@@ -109,7 +109,7 @@ User / VPN Client
 ├── README.md
 ├── PHASE3_ADDITIONS_README.md
 ├── apps/
-│   └── todo-3tier/
+│   └── 3-tier-app/
 │       ├── frontend/
 │       ├── backend/
 │       └── database/

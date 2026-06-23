@@ -1,17 +1,17 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: todo-app-config
+  name: ops-app-config
   labels:
-    app.kubernetes.io/name: todo
+    app.kubernetes.io/name: ops-portal
     app.kubernetes.io/part-of: indetechs-phase3
     app.kubernetes.io/managed-by: kubectl
     app.kubernetes.io/component: config
 data:
-  POSTGRES_DB: tododb
-  POSTGRES_USER: todoapp
-  PGDATABASE: tododb
-  PGUSER: todoapp
-  PGHOST: todo-database
+  POSTGRES_DB: opsdb
+  POSTGRES_USER: opsapp
+  PGDATABASE: opsdb
+  PGUSER: opsapp
+  PGHOST: ops-database
   PGPORT: "5432"
   LOG_LEVEL: info

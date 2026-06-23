@@ -21,10 +21,10 @@ Deploy a production-style 3-tier application using:
 ```text
 Admin/VPN Client
   -> Traefik LoadBalancer: 192.168.30.200
-  -> Ingress: todo.indetechs.local
-  -> todo-frontend Service
-  -> todo-backend Service
-  -> todo-database Service
+  -> Ingress: ops.indetechs.local
+  -> ops-frontend Service
+  -> ops-backend Service
+  -> ops-database Service
   -> PostgreSQL PVC using nfs-csi
 ```
 
@@ -165,14 +165,14 @@ Traefik is exposed at:
 The app route is:
 
 ```text
-Host: todo.indetechs.local
+Host: ops.indetechs.local
 ```
 
 Test without DNS:
 
 ```bash
-curl -H 'Host: todo.indetechs.local' http://192.168.30.200/
-curl -H 'Host: todo.indetechs.local' http://192.168.30.200/api/todos
+curl -H 'Host: ops.indetechs.local' http://192.168.30.200/
+curl -H 'Host: ops.indetechs.local' http://192.168.30.200/api/tasks
 ```
 
 ## Deployment commands
@@ -186,26 +186,26 @@ bash scripts/verify-phase3.sh
 
 ## Persistence validation
 
-Create a todo item:
+Create a task:
 
 ```bash
-curl -H 'Host: todo.indetechs.local' \
+curl -H 'Host: ops.indetechs.local' \
   -H 'Content-Type: application/json' \
   -d '{"title":"Persistence test"}' \
-  http://192.168.30.200/api/todos
+  http://192.168.30.200/api/tasks
 ```
 
 Restart the database pod:
 
 ```bash
 kubectl -n app-prod delete pod -l app.kubernetes.io/component=database
-kubectl -n app-prod rollout status statefulset/todo-database
+kubectl -n app-prod rollout status statefulset/ops-database
 ```
 
 Confirm the item still exists:
 
 ```bash
-curl -H 'Host: todo.indetechs.local' http://192.168.30.200/api/todos
+curl -H 'Host: ops.indetechs.local' http://192.168.30.200/api/tasks
 ```
 
 If the item remains, PostgreSQL data survived pod recreation through the NFS-backed PVC.

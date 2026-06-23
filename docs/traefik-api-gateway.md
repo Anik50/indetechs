@@ -39,5 +39,5 @@ ingressClassName: traefik
 Test command:
 
 ```bash
-curl -H 'Host: todo.indetechs.local' http://192.168.30.200/
+curl -H 'Host: ops.indetechs.local' http://192.168.30.200/
 ```

@@ -1,16 +1,16 @@
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: todo-frontend
+  name: ops-frontend
   labels:
-    app.kubernetes.io/name: todo
+    app.kubernetes.io/name: ops-portal
     app.kubernetes.io/part-of: indetechs-phase3
     app.kubernetes.io/component: frontend
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: todo-frontend
+    name: ops-frontend
   minReplicas: 2
   maxReplicas: 4
   metrics:
