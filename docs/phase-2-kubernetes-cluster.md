@@ -6,20 +6,20 @@ Phase 2 is complete.
 
 The Kubernetes cluster has been initialized successfully, all control-plane and worker nodes have joined the cluster, Canal CNI is installed, persistent storage using a dedicated NFS VM and NFS CSI driver is working, and cluster-level networking/security controls have been created.
 
-The Phase 2 NetworkPolicies and Pod Disruption Budgets are deployed in advance for the future 3-tier application. Their runtime behavior will be validated during Phase 3 after deploying frontend, backend, and database pods using the expected labels.
+The Phase 2 NetworkPolicies and Pod Disruption Budgets were created before the application deployment and were validated during Phase 3 after the frontend, backend, and database pods were deployed with the expected labels.
 
 ## Task 2.1 — Initialise the Cluster
 
 ### Requirement: Initialise the Control Plane Node
 
-| Item | Status |
-|---|---|
+| Item                                                | Status   |
+| --------------------------------------------------- | -------- |
 | First control-plane node initialized with `kubeadm` | Complete |
-| Kubernetes API endpoint configured through VIP | Complete |
-| Kubernetes API VIP configured with `kube-vip` | Complete |
-| Pod CIDR configured | Complete |
-| Service CIDR configured | Complete |
-| Admin kubeconfig configured | Complete |
+| Kubernetes API endpoint configured through VIP      | Complete |
+| Kubernetes API VIP configured with `kube-vip`       | Complete |
+| Pod CIDR configured                                 | Complete |
+| Service CIDR configured                             | Complete |
+| Admin kubeconfig configured                         | Complete |
 
 Cluster endpoint:
 
@@ -78,15 +78,15 @@ kubectl get nodes -o wide
 
 ### Cluster Health Verification
 
-| Item | Status |
-|---|---|
-| API server reachable | Complete |
-| kube-vip running | Complete |
-| CoreDNS running | Complete |
-| Canal running | Complete |
-| kube-proxy running | Complete |
-| Nodes Ready | Complete |
-| Metrics Server installed | Complete |
+| Item                         | Status   |
+| ---------------------------- | -------- |
+| API server reachable         | Complete |
+| kube-vip API VIP running     | Complete |
+| CoreDNS running              | Complete |
+| Canal running                | Complete |
+| kube-proxy running           | Complete |
+| Nodes Ready                  | Complete |
+| Metrics Server installed     | Complete |
 | Headlamp dashboard available | Complete |
 
 Verification commands:
@@ -110,16 +110,16 @@ kubeworker-1   Ready    worker          v1.36.2   192.168.30.243
 kubeworker-2   Ready    worker          v1.36.2   192.168.30.244
 ```
 
-All nodes are running Ubuntu 24.04.4 LTS with kernel `6.8.0-124-generic` and container runtime `containerd://2.3.2`.
+All nodes are running Ubuntu Server 24.04.4 LTS with kernel `6.8.0-124-generic` and container runtime `containerd://2.3.2`.
 
 ## Task 2.2 — Join the Worker Nodes
 
 Both worker nodes were successfully joined to the Kubernetes cluster and reached the `Ready` state.
 
-| Node | Status | Role | Internal IP |
-|---|---|---|---|
-| `kubeworker-1` | Ready | worker | `192.168.30.243` |
-| `kubeworker-2` | Ready | worker | `192.168.30.244` |
+| Node           | Status | Role   | Internal IP      |
+| -------------- | ------ | ------ | ---------------- |
+| `kubeworker-1` | Ready  | worker | `192.168.30.243` |
+| `kubeworker-2` | Ready  | worker | `192.168.30.244` |
 
 The worker nodes were labeled to support advanced workload scheduling and storage-aware placement.
 
@@ -168,17 +168,17 @@ Option A — NFS-based persistent storage
 
 ### NFS Storage Design
 
-| Component | Value |
-|---|---|
-| Storage VM | `nfs` |
-| Management IP | `192.168.30.235` |
-| Storage IP | `192.168.32.10` |
-| Export path | `/srv/nfs/k8s` |
-| Storage network | `192.168.32.0/24` |
-| Kubernetes StorageClass | `nfs-csi` |
-| CSI driver | `nfs.csi.k8s.io` |
-| Reclaim policy | `Retain` |
-| Access mode tested | `ReadWriteMany` |
+| Component               | Value             |
+| ----------------------- | ----------------- |
+| Storage VM              | `nfs`             |
+| Management IP           | `192.168.30.235`  |
+| Storage IP              | `192.168.32.10`   |
+| Export path             | `/srv/nfs/k8s`    |
+| Storage network         | `192.168.32.0/24` |
+| Kubernetes StorageClass | `nfs-csi`         |
+| CSI driver              | `nfs.csi.k8s.io`  |
+| Reclaim policy          | `Retain`          |
+| Access mode tested      | `ReadWriteMany`   |
 
 ### Storage Justification
 
@@ -192,16 +192,17 @@ To improve isolation, NFS traffic uses a dedicated storage network on `192.168.3
 
 Performance:
 
-- NFS traffic is separated onto a dedicated storage subnet.
-- Kubernetes nodes access NFS through the isolated `vmbr2` bridge.
-- The NFS server is simple and low overhead for a local KVM environment.
+* NFS traffic is separated onto a dedicated storage subnet.
+* Kubernetes nodes access NFS through the isolated `vmbr2` bridge.
+* The NFS server is simple and low overhead for a local KVM environment.
+* NFS provides shared storage that can be consumed by pods scheduled on different Kubernetes nodes.
 
 Redundancy:
 
-- This implementation uses a single NFS server, so it is not fully redundant.
-- The StorageClass uses `Retain` to reduce accidental data loss.
-- VM-level backups/snapshots are available through Proxmox.
-- In a production environment, this would be improved with replicated NFS, DRBD, Longhorn, Rook/Ceph, or storage-level replication/backups.
+* This implementation uses a single NFS server, so it is not fully redundant.
+* The StorageClass uses `Retain` to reduce the risk of accidental data loss when PVCs are deleted.
+* VM-level backups/snapshots are available through Proxmox.
+* In a production environment, this would be improved with replicated NFS, DRBD, Longhorn, Rook/Ceph, or storage-level replication/backups.
 
 ### NFS Export
 
@@ -209,11 +210,17 @@ Redundancy:
 /srv/nfs/k8s 192.168.32.0/24(rw,sync,no_subtree_check,no_root_squash)
 ```
 
+The lab export currently uses `no_root_squash` to avoid UID/GID permission issues during CSI dynamic provisioning. In a stricter production deployment, this would be reviewed and replaced with tighter export permissions, `root_squash` where compatible, and workload-specific security contexts.
+
 ### StorageClass
+
+StorageClass:
 
 ```text
 nfs-csi
 ```
+
+The NFS CSI StorageClass is configured as the default StorageClass for dynamic provisioning.
 
 Verification commands:
 
@@ -245,6 +252,13 @@ The NFS export only allows clients from:
 ```
 
 The storage network has no default gateway on the Kubernetes nodes, and it is isolated from the management network. This limits NFS access to nodes attached to the storage bridge.
+
+In this lab, storage isolation is primarily provided by:
+
+* a dedicated Proxmox bridge for storage traffic,
+* separate VM storage interfaces,
+* no default gateway on the storage interface,
+* NFS export restrictions to the storage subnet.
 
 ## Task 2.4 — Cluster Networking and Security
 
@@ -311,6 +325,8 @@ limitrange/default-resource-limits
 resourcequota/app-prod-resource-quota
 ```
 
+Application workloads also define resource requests and limits in their manifests. The namespace `LimitRange` provides an additional safety net so that pods do not run without resource defaults.
+
 ### Network Policies
 
 NetworkPolicies were implemented to enforce 3-tier application isolation.
@@ -318,11 +334,12 @@ NetworkPolicies were implemented to enforce 3-tier application isolation.
 The security model is:
 
 ```text
-frontend -> backend     allowed on TCP 8080
-backend  -> database    allowed on TCP 5432
-frontend -> database    blocked
-all other app traffic   denied by default
-DNS egress              allowed
+traefik -> frontend    allowed on TCP 8080
+frontend -> backend    allowed on TCP 8080
+backend  -> database   allowed on TCP 5432
+frontend -> database   blocked
+all other app traffic  denied by default
+DNS egress             allowed
 ```
 
 Created NetworkPolicies:
@@ -334,28 +351,33 @@ allow-frontend-to-backend
 allow-frontend-egress-to-backend
 allow-backend-to-database
 allow-backend-egress-to-database
+allow-traefik-to-frontend
 ```
+
+The Traefik-to-frontend policy is added with the Phase 3 workload manifests because it depends on the Traefik namespace and frontend labels. Backend and database services remain internal `ClusterIP` services and are not exposed directly outside the cluster.
 
 Verification:
 
 ```bash
 kubectl get networkpolicy -n app-prod
+kubectl describe networkpolicy -n app-prod
+kubectl -n app-prod get pods --show-labels
 ```
 
-Result:
+Expected result:
 
 ```text
-allow-backend-egress-to-database
-allow-backend-to-database
-allow-dns-egress
-allow-frontend-egress-to-backend
-allow-frontend-to-backend
-default-deny-ingress-egress
+NetworkPolicies exist in app-prod.
+Application pods have labels matching the policy selectors.
+Traefik can reach the frontend service.
+Frontend can reach the backend service.
+Backend can reach the database service.
+Direct frontend-to-database traffic is blocked by policy design.
 ```
 
 ### Pod Disruption Budgets
 
-Pod Disruption Budgets were created for the future application tiers:
+Pod Disruption Budgets were created for the application tiers:
 
 ```text
 frontend-pdb
@@ -365,15 +387,24 @@ database-pdb
 
 These PDBs are intended to maintain application availability during voluntary disruptions such as node drains or maintenance operations.
 
+The frontend and backend PDBs help ensure that at least one replica remains available during voluntary disruption when multiple replicas are running.
+
+The database PDB protects the single PostgreSQL pod from voluntary eviction. However, the database tier is still not highly available because it runs as a single PostgreSQL replica. The database data is persistent through the NFS-backed PVC, but the database service itself is not replicated.
+
 Verification:
 
 ```bash
 kubectl get pdb -n app-prod
+kubectl describe pdb -n app-prod
 ```
 
-Current note:
+Expected result after Phase 3 deployment:
 
-The PDBs currently show zero allowed disruptions because the frontend, backend, and database pods have not been deployed yet. Their behavior will be validated during Phase 3 after the 3-tier application is deployed with the matching labels.
+```text
+frontend-pdb, backend-pdb, and database-pdb exist.
+The PDB selectors match the deployed application pods.
+Voluntary disruptions are constrained according to the configured PDB rules.
+```
 
 ### Manifest File
 
@@ -385,43 +416,107 @@ manifests/security/cluster-security.yaml
 
 This file contains namespace-level resource controls, NetworkPolicies, and Pod Disruption Budgets for the production application namespace.
 
+The Phase 3 Traefik-to-frontend NetworkPolicy is stored with the workload manifests:
+
+```text
+manifests/workloads/networkpolicy-allow-traefik.yaml
+```
+
+## kube-vip LoadBalancer Support
+
+During Phase 2, kube-vip was used for Kubernetes API high availability through the API VIP:
+
+```text
+192.168.30.250
+```
+
+During Phase 3, kube-vip service LoadBalancer support was added using a separate kube-vip services DaemonSet and the kube-vip cloud provider.
+
+The LoadBalancer IP pool is now active:
+
+```text
+192.168.30.200-192.168.30.219
+```
+
+Traefik is exposed through the first assigned address:
+
+```text
+192.168.30.200
+```
+
+This means kube-vip now provides two separate networking functions in the cluster:
+
+| Purpose                   | IP / Range                      | Implementation                                        |
+| ------------------------- | ------------------------------- | ----------------------------------------------------- |
+| Kubernetes API HA         | `192.168.30.250`                | kube-vip static pods                                  |
+| Service LoadBalancer VIPs | `192.168.30.200-192.168.30.219` | kube-vip services DaemonSet + kube-vip cloud provider |
+
+Verification commands:
+
+```bash
+kubectl -n kube-system get pods -o wide | grep kube-vip
+kubectl -n kube-system get configmap kubevip -o yaml
+kubectl get svc -A | grep LoadBalancer
+kubectl -n traefik get svc -o wide
+```
+
+Expected result:
+
+```text
+kube-vip components are running.
+The kubevip ConfigMap contains the LoadBalancer pool.
+Traefik has an external LoadBalancer IP of 192.168.30.200.
+```
+
+## Phase 2 Verification Script
+
+Phase 2 validation can be repeated with:
+
+```bash
+bash scripts/verify-phase2.sh
+```
+
+This script verifies the cluster foundation, node readiness, storage provisioning, and baseline Kubernetes platform components.
+
 ## Phase 2 Completion Checklist
 
-| Requirement | Status |
-|---|---|
-| Initialise control-plane node | Complete |
-| Configure Kubernetes API VIP | Complete |
-| Configure pod CIDR | Complete |
-| Configure service CIDR | Complete |
-| Install CNI plugin | Complete |
-| Justify CNI choice | Complete |
-| Verify API server health | Complete |
-| Verify cluster components | Complete |
-| Join worker nodes | Complete |
-| Confirm worker nodes Ready | Complete |
-| Apply worker node labels | Complete |
-| Set up dedicated NFS storage VM | Complete |
-| Configure NFS export | Complete |
-| Configure storage network | Complete |
-| Install NFS CSI driver | Complete |
-| Create NFS StorageClass | Complete |
-| Test PVC dynamic provisioning | Complete |
-| Test pod volume mount | Complete |
-| Justify NFS on performance grounds | Complete |
-| Justify NFS on redundancy grounds | Complete with limitation noted |
-| Configure access restrictions for NFS | Complete through network isolation and export subnet |
-| Enforce NetworkPolicies | Complete |
-| Block direct frontend-to-database traffic | Complete by policy design |
-| Use namespaces for environment separation | Complete |
-| Set resource requests/limits through namespace defaults | Complete |
-| Configure Pod Disruption Budgets | Complete |
+| Requirement                                                                     | Status                                               |
+| ------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| Initialise control-plane node                                                   | Complete                                             |
+| Configure Kubernetes API VIP                                                    | Complete                                             |
+| Configure pod CIDR                                                              | Complete                                             |
+| Configure service CIDR                                                          | Complete                                             |
+| Install CNI plugin                                                              | Complete                                             |
+| Justify CNI choice                                                              | Complete                                             |
+| Verify API server health                                                        | Complete                                             |
+| Verify cluster components                                                       | Complete                                             |
+| Join worker nodes                                                               | Complete                                             |
+| Confirm worker nodes Ready                                                      | Complete                                             |
+| Apply worker node labels                                                        | Complete                                             |
+| Set up dedicated NFS storage VM                                                 | Complete                                             |
+| Configure NFS export                                                            | Complete                                             |
+| Configure storage network                                                       | Complete                                             |
+| Install NFS CSI driver                                                          | Complete                                             |
+| Create NFS StorageClass                                                         | Complete                                             |
+| Test PVC dynamic provisioning                                                   | Complete                                             |
+| Test pod volume mount                                                           | Complete                                             |
+| Justify NFS on performance grounds                                              | Complete                                             |
+| Justify NFS on redundancy grounds                                               | Complete with limitation noted                       |
+| Configure access restrictions for NFS                                           | Complete through network isolation and export subnet |
+| Enforce NetworkPolicies                                                         | Complete                                             |
+| Block direct frontend-to-database traffic                                       | Complete by policy design                            |
+| Use namespaces for environment separation                                       | Complete                                             |
+| Set resource requests/limits on application pods and enforce namespace defaults | Complete                                             |
+| Configure Pod Disruption Budgets                                                | Complete                                             |
+| Validate PDBs and NetworkPolicies with Phase 3 workloads                        | Complete                                             |
+| Extend kube-vip for service LoadBalancer IPs                                    | Complete during Phase 3                              |
 
 ## Phase 2 Design Summary
 
-The Kubernetes cluster foundation is operational. The control plane was initialized with `kubeadm`, additional control-plane and worker nodes joined successfully, and all nodes reached the Ready state. Canal was installed as the CNI plugin, and the Kubernetes API is reachable through the kube-vip virtual IP.
+The Kubernetes cluster foundation is operational. The control plane was initialized with `kubeadm`, additional control-plane and worker nodes joined successfully, and all nodes reached the `Ready` state. Canal was installed as the CNI plugin, and the Kubernetes API is reachable through the kube-vip virtual IP.
 
-Persistent storage is implemented using a dedicated NFS server and the NFS CSI driver. This allows Kubernetes PersistentVolumeClaims to be dynamically provisioned and mounted by pods across the cluster.
+Persistent storage is implemented using a dedicated NFS server and the NFS CSI driver. This allows Kubernetes PersistentVolumeClaims to be dynamically provisioned and mounted by pods across the cluster. NFS was selected for this lab because it is lightweight and practical for the available hardware, while its single-server redundancy limitation is clearly documented.
 
-Cluster-level security controls are implemented using namespace separation, ResourceQuota, LimitRange, NetworkPolicies, and Pod Disruption Budgets. The NetworkPolicies enforce the intended 3-tier application model where frontend traffic can reach the backend, backend traffic can reach the database, and direct frontend-to-database traffic is blocked.
+Cluster-level security controls are implemented using namespace separation, ResourceQuota, LimitRange, NetworkPolicies, and Pod Disruption Budgets. The NetworkPolicies enforce the intended 3-tier application model where Traefik can reach the frontend, frontend traffic can reach the backend, backend traffic can reach the database, and direct frontend-to-database traffic is blocked.
 
-The kube-vip cloud provider for application `LoadBalancer` services has not been installed yet. kube-vip is currently used for Kubernetes API high availability only. Application LoadBalancer support is planned for Phase 3 application exposure.
+kube-vip is used for both Kubernetes API high availability and private LoadBalancer service IPs. The API VIP is `192.168.30.250`, and the application LoadBalancer pool is `192.168.30.200-192.168.30.219`. Traefik uses `192.168.30.200` as the in-cluster API gateway entry point for the Phase 3 application.
