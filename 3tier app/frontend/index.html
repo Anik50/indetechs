@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Indetechs Todo App</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 0; background: #f4f6f8; color: #17202a; }
+    main { max-width: 760px; margin: 48px auto; background: #fff; border-radius: 16px; padding: 28px; box-shadow: 0 10px 30px rgba(0,0,0,.08); }
+    h1 { margin-top: 0; }
+    form { display: flex; gap: 8px; margin: 20px 0; }
+    input { flex: 1; padding: 12px; border: 1px solid #ccd1d1; border-radius: 8px; }
+    button { padding: 10px 14px; border: 0; border-radius: 8px; cursor: pointer; }
+    button.primary { background: #1f618d; color: white; }
+    ul { list-style: none; padding: 0; }
+    li { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #ecf0f1; }
+    .done { color: #7f8c8d; text-decoration: line-through; }
+    .meta { font-size: 13px; color: #5d6d7e; }
+    .actions { display: flex; gap: 6px; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Indetechs 3-Tier Todo App</h1>
+    <p class="meta">Frontend → Backend → PostgreSQL with persistent NFS storage</p>
+
+    <form id="todo-form">
+      <input id="todo-title" placeholder="Add a task" required />
+      <button class="primary" type="submit">Add</button>
+    </form>
+
+    <p id="status" class="meta">Loading...</p>
+    <ul id="todos"></ul>
+  </main>
+
+  <script>
+    const statusEl = document.getElementById('status');
+    const listEl = document.getElementById('todos');
+    const form = document.getElementById('todo-form');
+    const input = document.getElementById('todo-title');
+
+    async function api(path, options = {}) {
+      const response = await fetch(path, {
+        headers: { 'Content-Type': 'application/json' },
+        ...options,
+      });
+      if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+      return response.json();
+    }
+
+    async function loadTodos() {
+      try {
+        const todos = await api('/api/todos');
+        listEl.innerHTML = '';
+        todos.forEach(todo => {
+          const li = document.createElement('li');
+          const title = document.createElement('span');
+          title.textContent = todo.title;
+          if (todo.completed) title.className = 'done';
+
+          const actions = document.createElement('span');
+          actions.className = 'actions';
+
+          const toggle = document.createElement('button');
+          toggle.textContent = todo.completed ? 'Undo' : 'Done';
+          toggle.onclick = async () => {
+            await api(`/api/todos/${todo.id}`, {
+              method: 'PATCH',
+              body: JSON.stringify({ completed: !todo.completed }),
+            });
+            await loadTodos();
+          };
+
+          const remove = document.createElement('button');
+          remove.textContent = 'Delete';
+          remove.onclick = async () => {
+            await fetch(`/api/todos/${todo.id}`, { method: 'DELETE' });
+            await loadTodos();
+          };
+
+          actions.append(toggle, remove);
+          li.append(title, actions);
+          listEl.appendChild(li);
+        });
+        statusEl.textContent = `${todos.length} item(s)`;
+      } catch (err) {
+        statusEl.textContent = `Error: ${err.message}`;
+      }
+    }
+
+    form.addEventListener('submit', async event => {
+      event.preventDefault();
+      const title = input.value.trim();
+      if (!title) return;
+      await api('/api/todos', { method: 'POST', body: JSON.stringify({ title }) });
+      input.value = '';
+      await loadTodos();
+    });
+
+    loadTodos();
+  </script>
+</body>
+</html>

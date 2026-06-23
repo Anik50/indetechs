@@ -1,0 +1,19 @@
+deployment:
+  replicas: 2
+
+service:
+  type: LoadBalancer
+  annotations:
+    kube-vip.io/loadbalancerIPs: "192.168.30.200"
+
+ingressClass:
+  enabled: true
+  isDefaultClass: false
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 300m
+    memory: 256Mi
