@@ -1,0 +1,40 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: storage-test
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nfs-test-pvc
+  namespace: storage-test
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: nfs-csi
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nfs-test-pod
+  namespace: storage-test
+spec:
+  containers:
+    - name: test
+      image: busybox:1.36
+      command:
+        - sh
+        - -c
+        - |
+          echo "NFS PVC test from Kubernetes at $(date)" > /data/test.txt
+          sleep 3600
+      volumeMounts:
+        - name: data
+          mountPath: /data
+  volumes:
+    - name: data
+      persistentVolumeClaim:
+        claimName: nfs-test-pvc
