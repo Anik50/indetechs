@@ -925,6 +925,207 @@ LibreNMS is planned as a future infrastructure monitoring and alerting layer for
 
 ---
 
+## Optional CI/CD and Private Registry Preparation
+
+Jenkins and Harbor are planned as the future CI/CD and private container registry components for this lab.
+
+The intended CI/CD flow is:
+
+```text
+Developer / Git Repository
+  -> Jenkins pipeline
+  -> Build frontend, backend, and database images
+  -> Push images to Harbor private registry
+  -> Scan images in Harbor
+  -> Deploy approved images to Kubernetes
+```
+
+| Component       | Purpose                                                              | Status                |
+| --------------- | -------------------------------------------------------------------- | --------------------- |
+| Jenkins         | CI/CD automation server for image builds and deployment pipelines    | Planned / Future work |
+| Harbor          | Private container registry for storing and scanning container images | Planned / Future work |
+| Trivy in Harbor | Vulnerability scanning for pushed images                             | Planned / Future work |
+
+---
+
+### Jenkins Installation with Docker
+
+Create a persistent Jenkins home directory:
+
+```bash
+sudo mkdir -p /var/jenkins_home
+sudo chown -R 1000:1000 /var/jenkins_home
+```
+
+Run Jenkins as a Docker container:
+
+```bash
+docker run -d \
+  --name jenkins \
+  --restart=always \
+  -p 8080:8080 \
+  -p 50000:50000 \
+  -v /var/jenkins_home:/var/jenkins_home \
+  jenkins/jenkins:lts
+```
+
+Check that Jenkins is running:
+
+```bash
+docker ps | grep jenkins
+```
+
+Get the initial Jenkins admin password:
+
+```bash
+docker exec jenkins cat /var/jenkins_home/secrets/initialAdminPassword
+```
+
+Open Jenkins in a browser:
+
+```text
+http://<jenkins-host-ip>:8080
+```
+
+After login, install recommended plugins and create the first admin user.
+
+---
+
+### Harbor Installation for Private Image Registry
+
+Harbor is planned as the private Docker image registry for this project. It will store application images securely and provide vulnerability scanning before images are deployed to Kubernetes.
+
+Install required packages on the Harbor host:
+
+```bash
+sudo apt update
+sudo apt install -y docker.io docker-compose-plugin wget tar
+```
+
+Create an installation directory:
+
+```bash
+sudo mkdir -p /opt/harbor
+cd /opt/harbor
+```
+
+Download the Harbor offline installer from the Harbor releases page. Replace the version below with the version selected for the lab:
+
+```bash
+HARBOR_VERSION=<harbor-version>
+
+wget https://github.com/goharbor/harbor/releases/download/v${HARBOR_VERSION}/harbor-offline-installer-v${HARBOR_VERSION}.tgz
+tar xzf harbor-offline-installer-v${HARBOR_VERSION}.tgz
+cd harbor
+```
+
+Create the Harbor configuration file:
+
+```bash
+cp harbor.yml.tmpl harbor.yml
+```
+
+Edit the configuration:
+
+```bash
+nano harbor.yml
+```
+
+Important values to set:
+
+```yaml
+hostname: harbor.indetechs.local
+
+harbor_admin_password: ChangeMeStrongPassword
+
+data_volume: /data
+```
+
+For a production-style deployment, Harbor should use HTTPS. In this local lab, the hostname can be mapped through local DNS or `/etc/hosts`.
+
+Install Harbor with Trivy vulnerability scanning enabled:
+
+```bash
+sudo ./install.sh --with-trivy
+```
+
+Verify Harbor containers:
+
+```bash
+docker compose ps
+```
+
+Access Harbor:
+
+```text
+https://harbor.indetechs.local
+```
+
+Default username:
+
+```text
+admin
+```
+
+Use the password configured in `harbor.yml`.
+
+---
+
+### Example Image Push to Harbor
+
+Create a Harbor project named:
+
+```text
+indetechs
+```
+
+Login to Harbor:
+
+```bash
+docker login harbor.indetechs.local
+```
+
+Tag an application image for Harbor:
+
+```bash
+docker tag docker.io/anik50/ops-backend:v3 harbor.indetechs.local/indetechs/ops-backend:v3
+```
+
+Push the image:
+
+```bash
+docker push harbor.indetechs.local/indetechs/ops-backend:v3
+```
+
+The same approach can be used for the frontend and database images:
+
+```bash
+docker tag docker.io/anik50/ops-frontend:v3 harbor.indetechs.local/indetechs/ops-frontend:v3
+docker tag docker.io/anik50/ops-database:v3 harbor.indetechs.local/indetechs/ops-database:v3
+
+docker push harbor.indetechs.local/indetechs/ops-frontend:v3
+docker push harbor.indetechs.local/indetechs/ops-database:v3
+```
+
+After images are pushed, Harbor can scan them for vulnerabilities before they are used in Kubernetes manifests.
+
+---
+
+### Future Jenkins Pipeline Direction
+
+The planned Jenkins pipeline will:
+
+1. pull source code from Git;
+2. build frontend, backend, and database container images;
+3. tag images with a version or commit hash;
+4. push images to Harbor;
+5. trigger or verify Harbor vulnerability scans;
+6. deploy approved images to Kubernetes using `kubectl` or Kustomize;
+7. provide rollback support if deployment fails.
+
+This CI/CD work is documented as future improvement and is not part of the verified mandatory Phase 1–3 deployment.
+
+
 ## Known Limitations
 
 The mandatory core phases have been completed and verified. The following limitations remain:

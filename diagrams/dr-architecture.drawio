@@ -1,0 +1,218 @@
+<mxfile host="app.diagrams.net">
+  <diagram name="Page-1" id="L3wEYQzGUo5yhAmUYk9U">
+    <mxGraphModel grid="1" page="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" pageScale="1" pageWidth="2200" pageHeight="1500" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=24;fontStyle=1;" value="Independent DC and DR Architecture - OPNsense HA Per Site" vertex="1">
+          <mxGeometry height="45" width="2040" x="80" y="20" as="geometry" />
+        </mxCell>
+        <mxCell id="subtitle" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=14;" value="Independent sites. No stretched Proxmox, no QDevice, no cross-site Ceph, no cross-site Kubernetes HA. Critical DB async sync only with target RPO approx. 30 min." vertex="1">
+          <mxGeometry height="35" width="1880" x="160" y="65" as="geometry" />
+        </mxCell>
+        <mxCell id="users" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#dae8fc;strokeColor=#6c8ebf;fontColor=#000000;spacing=8;fontSize=14;fontStyle=1;" value="Internet / Users&lt;br&gt;Public HTTPS" vertex="1">
+          <mxGeometry height="80" width="250" x="100" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="cloudflare" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#e1d5e7;strokeColor=#9673a6;fontColor=#000000;spacing=8;fontSize=14;fontStyle=1;" value="Cloudflare Front Door&lt;br&gt;DNS, DDoS, WAF, Load Balancer&lt;br&gt;Health checks + DNS failover" vertex="1">
+          <mxGeometry height="110" width="460" x="760" y="105" as="geometry" />
+        </mxCell>
+        <mxCell id="breakglass" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#fff2cc;strokeColor=#d6b656;fontColor=#000000;spacing=8;fontSize=13;" value="Break-Glass Access&lt;br&gt;Alternate DNS / direct emergency hostname&lt;br&gt;Admin VPN independent of Cloudflare" vertex="1">
+          <mxGeometry height="110" width="500" x="1490" y="105" as="geometry" />
+        </mxCell>
+        <mxCell id="primary_site" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#f9fbff;strokeColor=#6c8ebf;fontColor=#000000;spacing=8;fontSize=18;fontStyle=1;verticalAlign=top;spacingTop=10;" value="Primary DC - production site" vertex="1">
+          <mxGeometry height="945" width="890" x="70" y="270" as="geometry" />
+        </mxCell>
+        <mxCell id="dr_site" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#fffafa;strokeColor=#b85450;fontColor=#000000;spacing=8;fontSize=18;fontStyle=1;verticalAlign=top;spacingTop=10;" value="DR DC - recovery site" vertex="1">
+          <mxGeometry height="945" width="890" x="1240" y="270" as="geometry" />
+        </mxCell>
+        <mxCell id="site_link" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#fff2cc;strokeColor=#d6b656;fontColor=#000000;spacing=8;fontSize=13;fontStyle=1;" value="Routed DC-to-DR Link&lt;br&gt;WireGuard / IPsec / private circuit&lt;br&gt;No layer-2 bridging" vertex="1">
+          <mxGeometry height="150" width="220" x="990" y="390" as="geometry" />
+        </mxCell>
+        <mxCell id="db_sync" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#f8cecc;strokeColor=#b85450;fontColor=#000000;spacing=8;fontSize=13;fontStyle=1;" value="Critical DB Sync&lt;br&gt;Async replication&lt;br&gt;Target RPO approx. 30 min" vertex="1">
+          <mxGeometry height="95" width="220" x="990" y="880" as="geometry" />
+        </mxCell>
+        <mxCell id="pbs_sync" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#f8cecc;strokeColor=#b85450;fontColor=#000000;spacing=8;fontSize=13;" value="Backup Sync&lt;br&gt;PBS Primary -&amp;gt; PBS DR&lt;br&gt;Immutable DR retention" vertex="1">
+          <mxGeometry height="95" width="220" x="990" y="1010" as="geometry" />
+        </mxCell>
+        <mxCell id="monitoring" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#e1d5e7;strokeColor=#9673a6;fontColor=#000000;spacing=8;fontSize=13;" value="External Monitoring and Alerting&lt;br&gt;Out-of-band metrics/logs and email/SMS/chat alerts" vertex="1">
+          <mxGeometry height="85" width="720" x="740" y="1270" as="geometry" />
+        </mxCell>
+        <mxCell id="rules" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#ffffff;strokeColor=#999999;fontColor=#000000;spacing=8;fontSize=13;align=left;" value="Design Rules&lt;br&gt;- OPNsense HA is per site only&lt;br&gt;- Kubernetes HA is per site only&lt;br&gt;- Storage stays local to each site&lt;br&gt;- No QDevice or stretched cluster&lt;br&gt;- Cross-site link carries only approved routed traffic" vertex="1">
+          <mxGeometry height="180" width="560" x="90" y="1265" as="geometry" />
+        </mxCell>
+        <mxCell id="runbook" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#ffffff;strokeColor=#999999;fontColor=#000000;spacing=8;fontSize=13;align=left;" value="Failover Runbook&lt;br&gt;1. Confirm incident&lt;br&gt;2. Check DB replica lag&lt;br&gt;3. Promote DR DB&lt;br&gt;4. Start/scale DR apps&lt;br&gt;5. Shift Cloudflare/DNS to DR&lt;br&gt;6. Keep Primary isolated until resync plan is approved" vertex="1">
+          <mxGeometry height="180" width="560" x="1560" y="1265" as="geometry" />
+        </mxCell>
+        <mxCell id="p_edge" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#fff2cc;strokeColor=#d6b656;fontColor=#000000;spacing=8;fontSize=13;fontStyle=1;" value="Primary Edge HA&lt;br&gt;CARP VIPs where supported" vertex="1">
+          <mxGeometry height="65" width="360" x="220" y="335" as="geometry" />
+        </mxCell>
+        <mxCell id="p_opn1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#d5e8d4;strokeColor=#82b366;fontColor=#000000;spacing=8;fontSize=13;fontStyle=1;" value="OPNsense P1&lt;br&gt;Firewall / NAT / VPN / IDS" vertex="1">
+          <mxGeometry height="85" width="260" x="110" y="430" as="geometry" />
+        </mxCell>
+        <mxCell id="p_opn2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#d5e8d4;strokeColor=#82b366;fontColor=#000000;spacing=8;fontSize=13;fontStyle=1;" value="OPNsense P2&lt;br&gt;HA peer: pfsync + config sync" vertex="1">
+          <mxGeometry height="85" width="260" x="450" y="430" as="geometry" />
+        </mxCell>
+        <mxCell id="p_ingress" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#dae8fc;strokeColor=#6c8ebf;fontColor=#000000;spacing=8;fontSize=13;" value="Primary Ingress / DMZ&lt;br&gt;Traefik / NGINX / Kubernetes ingress&lt;br&gt;Expose only public app ports" vertex="1">
+          <mxGeometry height="90" width="600" x="110" y="560" as="geometry" />
+        </mxCell>
+        <mxCell id="p_platform" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#000000;spacing=8;fontSize=13;fontStyle=1;" value="Primary Platform Layer&lt;br&gt;Proxmox/hypervisor cluster + local Kubernetes cluster&lt;br&gt;Site-local HA only" vertex="1">
+          <mxGeometry height="105" width="600" x="110" y="700" as="geometry" />
+        </mxCell>
+        <mxCell id="p_storage" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#ffffff;strokeColor=#666666;fontColor=#000000;spacing=8;fontSize=12;" value="Primary local storage&lt;br&gt;Ceph/ZFS/SSD&lt;br&gt;No WAN Ceph replication" vertex="1">
+          <mxGeometry height="105" width="170" x="750" y="700" as="geometry" />
+        </mxCell>
+        <mxCell id="p_apps" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#d5e8d4;strokeColor=#82b366;fontColor=#000000;spacing=8;fontSize=13;" value="Production App Services&lt;br&gt;VMs or K8s workloads&lt;br&gt;Active in Primary" vertex="1">
+          <mxGeometry height="115" width="390" x="110" y="855" as="geometry" />
+        </mxCell>
+        <mxCell id="p_db" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#f8cecc;strokeColor=#b85450;fontColor=#000000;spacing=8;fontSize=13;fontStyle=1;" value="Primary DB Local HA&lt;br&gt;DB-01 + DB-02&lt;br&gt;Critical data source" vertex="1">
+          <mxGeometry height="115" width="295" x="625" y="855" as="geometry" />
+        </mxCell>
+        <mxCell id="p_pbs" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#f8cecc;strokeColor=#b85450;fontColor=#000000;spacing=8;fontSize=13;" value="Primary Backup Server&lt;br&gt;PBS local backups&lt;br&gt;Syncs to DR PBS" vertex="1">
+          <mxGeometry height="115" width="295" x="625" y="1010" as="geometry" />
+        </mxCell>
+        <mxCell id="p_tel" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#ffffff;strokeColor=#666666;fontColor=#000000;spacing=8;fontSize=12;" value="Primary telemetry agents&lt;br&gt;metrics/logs/alerts" vertex="1">
+          <mxGeometry height="80" width="390" x="110" y="1010" as="geometry" />
+        </mxCell>
+        <mxCell id="d_edge" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#fff2cc;strokeColor=#d6b656;fontColor=#000000;spacing=8;fontSize=13;fontStyle=1;" value="DR Edge HA&lt;br&gt;Separate WAN IPs + CARP VIPs" vertex="1">
+          <mxGeometry height="65" width="360" x="1370" y="335" as="geometry" />
+        </mxCell>
+        <mxCell id="d_opn1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#d5e8d4;strokeColor=#82b366;fontColor=#000000;spacing=8;fontSize=13;fontStyle=1;" value="OPNsense D1&lt;br&gt;Firewall / NAT / VPN / IDS" vertex="1">
+          <mxGeometry height="85" width="260" x="1280" y="430" as="geometry" />
+        </mxCell>
+        <mxCell id="d_opn2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#d5e8d4;strokeColor=#82b366;fontColor=#000000;spacing=8;fontSize=13;fontStyle=1;" value="OPNsense D2&lt;br&gt;HA peer: pfsync + config sync" vertex="1">
+          <mxGeometry height="85" width="260" x="1620" y="430" as="geometry" />
+        </mxCell>
+        <mxCell id="d_ingress" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#dae8fc;strokeColor=#6c8ebf;fontColor=#000000;spacing=8;fontSize=13;" value="DR Ingress / DMZ&lt;br&gt;Traefik&amp;nbsp; / NGINX / Kubernetes ingress&lt;br&gt;Used for testing and failover" vertex="1">
+          <mxGeometry height="90" width="600" x="1280" y="560" as="geometry" />
+        </mxCell>
+        <mxCell id="d_platform" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#000000;spacing=8;fontSize=13;fontStyle=1;" value="DR Platform Layer&lt;br&gt;Independent Proxmox/hypervisor cluster + local Kubernetes cluster&lt;br&gt;Site-local HA only" vertex="1">
+          <mxGeometry height="105" width="600" x="1280" y="700" as="geometry" />
+        </mxCell>
+        <mxCell id="d_storage" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#ffffff;strokeColor=#666666;fontColor=#000000;spacing=8;fontSize=12;" value="DR local storage&lt;br&gt;Ceph/ZFS/SSD&lt;br&gt;No shared storage" vertex="1">
+          <mxGeometry height="105" width="170" x="1920" y="700" as="geometry" />
+        </mxCell>
+        <mxCell id="d_db" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#f8cecc;strokeColor=#b85450;fontColor=#000000;spacing=8;fontSize=13;fontStyle=1;" value="DR DB Replica&lt;br&gt;Async critical DB sync&lt;br&gt;Promote during failover" vertex="1">
+          <mxGeometry height="115" width="295" x="1280" y="855" as="geometry" />
+        </mxCell>
+        <mxCell id="d_apps" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#d5e8d4;strokeColor=#82b366;fontColor=#000000;spacing=8;fontSize=13;" value="DR ERP App Services&lt;br&gt;Warm/cold capacity&lt;br&gt;Start/scale on failover" vertex="1">
+          <mxGeometry height="115" width="390" x="1620" y="855" as="geometry" />
+        </mxCell>
+        <mxCell id="d_pbs" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#f8cecc;strokeColor=#b85450;fontColor=#000000;spacing=8;fontSize=13;" value="DR Backup Server&lt;br&gt;PBS sync target&lt;br&gt;Immutable retention" vertex="1">
+          <mxGeometry height="115" width="295" x="1280" y="1010" as="geometry" />
+        </mxCell>
+        <mxCell id="d_tel" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#ffffff;strokeColor=#666666;fontColor=#000000;spacing=8;fontSize=12;" value="DR telemetry agents&lt;br&gt;metrics/logs/alerts" vertex="1">
+          <mxGeometry height="80" width="390" x="1620" y="1010" as="geometry" />
+        </mxCell>
+        <mxCell id="e_users_cf" edge="1" parent="1" source="users" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#6c8ebf;strokeWidth=2;endArrow=block;endFill=1;" target="cloudflare" value="Public HTTPS">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_cf_p" edge="1" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#6c8ebf;strokeWidth=2;endArrow=block;endFill=1;" value="Normal path">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="880" y="250" />
+              <mxPoint x="300" y="250" />
+            </Array>
+            <mxPoint x="880" y="215" as="sourcePoint" />
+            <mxPoint x="300" y="335" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_cf_d" edge="1" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#b85450;strokeWidth=2;endArrow=block;endFill=1;dashed=1;dashPattern=8 4;" value="Failover path">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1100" y="250" />
+              <mxPoint x="1460" y="250" />
+            </Array>
+            <mxPoint x="1100" y="215" as="sourcePoint" />
+            <mxPoint x="1460" y="335" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_bg_p" edge="1" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#d6b656;strokeWidth=2;endArrow=block;endFill=1;dashed=1;dashPattern=8 4;" value="Emergency bypass">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1740" y="240" />
+              <mxPoint x="470" y="240" />
+            </Array>
+            <mxPoint x="1740" y="215" as="sourcePoint" />
+            <mxPoint x="470" y="330" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_bg_d" edge="1" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#d6b656;strokeWidth=2;endArrow=block;endFill=1;dashed=1;dashPattern=8 4;" value="Emergency bypass">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1740" y="315" />
+              <mxPoint x="1640" y="315" />
+            </Array>
+            <mxPoint x="1740" y="215" as="sourcePoint" />
+            <mxPoint x="1640" y="330" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_p_edge_pair" edge="1" parent="1" source="p_edge" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#82b366;strokeWidth=2;endArrow=block;endFill=1;" target="p_opn1" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_p_edge_pair2" edge="1" parent="1" source="p_edge" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#82b366;strokeWidth=2;endArrow=block;endFill=1;" target="p_opn2" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_p_opn_ing" edge="1" parent="1" source="p_opn1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#82b366;strokeWidth=2;endArrow=block;endFill=1;" target="p_ingress" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_p_ing_plat" edge="1" parent="1" source="p_ingress" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#6c8ebf;strokeWidth=2;endArrow=block;endFill=1;" target="p_platform" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_p_plat_apps" edge="1" parent="1" source="p_platform" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#666666;strokeWidth=2;endArrow=block;endFill=1;" target="p_apps" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_p_apps_db" edge="1" parent="1" source="p_apps" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#b85450;strokeWidth=2;endArrow=block;endFill=1;" target="p_db" value="Local app DB traffic">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_p_storage" edge="1" parent="1" source="p_storage" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#666666;strokeWidth=2;endArrow=block;endFill=1;" target="p_platform" value="Local only">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_d_edge_pair" edge="1" parent="1" source="d_edge" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#82b366;strokeWidth=2;endArrow=block;endFill=1;" target="d_opn1" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_d_edge_pair2" edge="1" parent="1" source="d_edge" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#82b366;strokeWidth=2;endArrow=block;endFill=1;" target="d_opn2" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_d_opn_ing" edge="1" parent="1" source="d_opn1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#82b366;strokeWidth=2;endArrow=block;endFill=1;" target="d_ingress" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_d_ing_plat" edge="1" parent="1" source="d_ingress" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#6c8ebf;strokeWidth=2;endArrow=block;endFill=1;" target="d_platform" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_d_plat_apps" edge="1" parent="1" source="d_platform" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#666666;strokeWidth=2;endArrow=block;endFill=1;" target="d_apps" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_d_apps_db" edge="1" parent="1" source="d_apps" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#b85450;strokeWidth=2;endArrow=block;endFill=1;" target="d_db" value="After failover">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_d_storage" edge="1" parent="1" source="d_storage" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#666666;strokeWidth=2;endArrow=block;endFill=1;" target="d_platform" value="Local only">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_p_vpn" edge="1" parent="1" source="p_opn2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#d6b656;strokeWidth=2;endArrow=block;endFill=1;" target="site_link" value="Site VPN">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_vpn_d" edge="1" parent="1" source="site_link" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#d6b656;strokeWidth=2;endArrow=block;endFill=1;" target="d_opn1" value="Site VPN">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_p_db_bus" edge="1" parent="1" source="p_db" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#b85450;strokeWidth=3;endArrow=block;endFill=1;" target="db_sync" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_bus_d_db" edge="1" parent="1" source="db_sync" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#b85450;strokeWidth=3;endArrow=block;endFill=1;" target="d_db" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_p_pbs_bus" edge="1" parent="1" source="p_pbs" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#b85450;strokeWidth=2;endArrow=block;endFill=1;dashed=1;dashPattern=8 4;" target="pbs_sync" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_bus_d_pbs" edge="1" parent="1" source="pbs_sync" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#b85450;strokeWidth=2;endArrow=block;endFill=1;dashed=1;dashPattern=8 4;" target="d_pbs" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_p_tel_mon" edge="1" parent="1" source="p_tel" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#9673a6;strokeWidth=2;endArrow=block;endFill=1;dashed=1;dashPattern=8 4;" target="monitoring" value="metrics/logs">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_d_tel_mon" edge="1" parent="1" source="d_tel" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#9673a6;strokeWidth=2;endArrow=block;endFill=1;dashed=1;dashPattern=8 4;" target="monitoring" value="metrics/logs">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
