@@ -330,6 +330,7 @@ Helm is used for platform-level services where chart-based lifecycle management 
 │   ├── dr-architecture.png
 │   ├── eck-observability.png
 │   ├── full-cluster-metrics-server.png
+│   ├── helm-chart-list.png
 │   ├── headlamp-workloads.png
 │   ├── prod-namespace.png
 │   ├── nodes-cluster-ready.png
