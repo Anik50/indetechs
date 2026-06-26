@@ -6,7 +6,7 @@ This repository documents and stores the configuration, manifests, scripts, and 
 
 The environment is deployed on **Proxmox VE using KVM/QEMU virtual machines**. **OPNsense** provides routing and firewall functionality, with **WireGuard VPN** access into the private management subnet. Kubernetes is deployed using **kubeadm** with three control-plane nodes, two worker nodes, a dedicated NFS storage VM, Canal CNI, kube-vip for the Kubernetes API virtual IP, kube-vip LoadBalancer support, Traefik API gateway, Metrics Server, Headlamp dashboard, NFS CSI dynamic storage provisioning, and a containerized three-tier application.
 
-The mandatory core phases are complete. Optional observability work using **ECK-managed Elasticsearch, Kibana, and Filebeat** was prepared, but it was not treated as a verified completed component because the current local KVM host did not have enough spare CPU and memory to run the observability stack reliably. During testing, Kibana remained pending / not-ready.
+The mandatory core phases are complete. Optional observability work using **ECK-managed Elasticsearch, Kibana, and Filebeat** was prepared and partially validated. Elasticsearch reached a running state, while Kibana was scheduled and connected to Elasticsearch but restarted due to Node.js heap memory exhaustion on the resource-limited KVM host.
 
 ---
 
@@ -17,7 +17,33 @@ The mandatory core phases are complete. Optional observability work using **ECK-
 | Phase 1  | KVM infrastructure setup                                                                                                           | Complete              |
 | Phase 2  | Kubernetes cluster setup, storage, networking, and security controls                                                               | Complete              |
 | Phase 3  | Three-tier application deployment with Traefik, kube-vip LoadBalancer, HPA, NetworkPolicies, and NFS-backed PostgreSQL persistence | Complete              |
-| Phase 4+ | Optional automation, ECK observability, DR, CI/CD, testing, and deeper operational runbooks                                        | Pending / Future work |
+| Phase 4+ | Optional automation, ECK observability, DR, CI/CD, testing, and deeper operational runbooks                                        | Partial / Future work |
+
+---
+
+## Assessment Coverage Status
+
+| Area                      | Requirement / Expectation                                  | Status      | Notes                                                                                                          |
+| ------------------------- | ---------------------------------------------------------- | ----------- | -------------------------------------------------------------------------------------------------------------- |
+| Infrastructure            | KVM-based VM environment                                   | Complete    | Proxmox VE with KVM/QEMU virtual machines.                                                                     |
+| Infrastructure            | Separate control-plane, worker, storage, and network roles | Complete    | Three control-plane nodes, two worker nodes, NFS VM, and OPNsense gateway.                                     |
+| Networking                | Isolated management and storage networks                   | Complete    | Management network uses `192.168.30.0/24`; storage network uses `192.168.32.0/24`.                             |
+| Networking                | Private access model                                       | Complete    | Access is through OPNsense and WireGuard VPN.                                                                  |
+| Host preparation          | Kernel modules, sysctl, swap, runtime, and SSH hardening   | Complete    | Kubernetes host prerequisites and containerd are configured.                                                   |
+| Kubernetes                | kubeadm cluster bootstrap                                  | Complete    | Cluster created with three control-plane nodes and two workers.                                                |
+| Kubernetes                | CNI and NetworkPolicy support                              | Complete    | Canal CNI deployed.                                                                                            |
+| Kubernetes                | High availability API endpoint                             | Complete    | kube-vip API VIP configured at `192.168.30.250`.                                                               |
+| Storage                   | Dynamic persistent storage                                 | Complete    | NFS CSI driver and default `nfs-csi` StorageClass configured.                                                  |
+| Security controls         | Namespaces, quotas, limits, NetworkPolicies, PDBs          | Complete    | Application security controls are included in manifests.                                                       |
+| Application               | Three-tier app deployment                                  | Complete    | Nginx frontend, Node.js backend, and PostgreSQL database deployed.                                             |
+| Application               | Persistent database validation                             | Complete    | PostgreSQL data survived pod deletion and recreation.                                                          |
+| Exposure                  | Gateway-based application access                           | Complete    | Traefik exposed through kube-vip LoadBalancer IP `192.168.30.200`.                                             |
+| Observability             | Kubernetes application log stack                           | Partial     | ECK Operator and Elasticsearch deployed; Kibana connected but restarted due to Node.js heap memory exhaustion. |
+| Observability             | Filebeat log collection                                    | Prepared    | Filebeat ECK Beat manifest is included for Kubernetes log collection.                                          |
+| Infrastructure monitoring | Hardware, VM, and network monitoring                       | Future work | LibreNMS is planned for Proxmox, OPNsense, Kubernetes VMs, NFS VM, SNMP monitoring, and alerting.              |
+| Automation                | Full VM and cluster rebuild automation                     | Future work | Helper scripts exist, but full Terraform/Ansible automation is not complete.                                   |
+| Backup / DR               | PostgreSQL backup, restore, RTO, RPO                       | Future work | Planned but not yet implemented.                                                                               |
+| CI/CD                     | Automated image build and deployment                       | Future work | Planned but not yet implemented.                                                                               |
 
 ---
 
@@ -98,7 +124,7 @@ Application Pods
 
 Filebeat is intended to run on Kubernetes nodes and collect container logs from the node log paths. Filebeat enriches logs with Kubernetes metadata and forwards them to Elasticsearch. Kibana is used to search and visualize application logs.
 
-This observability layer is documented as an optional extension because the current KVM host did not have enough available CPU and memory to run it reliably alongside the completed Kubernetes platform and application workloads. Kibana remained pending / not-ready during testing.
+This observability layer is documented as an optional extension. The ECK Operator and Elasticsearch were deployed successfully, and Kibana was scheduled and connected to Elasticsearch. However, Kibana did not remain healthy because the Kibana Node.js process exhausted available heap memory on the current resource-limited KVM host.
 
 Detailed observability notes are kept with the observability manifests:
 
@@ -124,29 +150,29 @@ manifests/observability/elk/README.md
 
 ## Cluster Summary
 
-| Component                        | Value                                                                                                             |
-| -------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| Kubernetes version               | `v1.36.2`                                                                                                         |
-| OS                               | Ubuntu Server 24.04.4 LTS                                                                                         |
-| Kernel                           | `6.8.0-124-generic`                                                                                               |
-| Container runtime                | `containerd://2.3.2`                                                                                              |
-| Bootstrap method                 | `kubeadm`                                                                                                         |
-| Control-plane nodes              | 3                                                                                                                 |
-| Worker nodes                     | 2                                                                                                                 |
-| etcd topology                    | Stacked etcd across the three control-plane nodes                                                                 |
-| CNI                              | Canal                                                                                                             |
-| Pod CIDR                         | `10.244.0.0/16`                                                                                                   |
-| Service CIDR                     | `10.96.0.0/12`                                                                                                    |
-| Kubernetes API VIP               | `192.168.30.250`                                                                                                  |
-| Service LoadBalancer provider    | kube-vip                                                                                                          |
-| LoadBalancer IP pool             | `192.168.30.200-192.168.30.219`                                                                                   |
-| API Gateway / Ingress Controller | Traefik                                                                                                           |
-| Traefik LoadBalancer IP          | `192.168.30.200`                                                                                                  |
-| Storage backend                  | NFS + NFS CSI                                                                                                     |
-| Default StorageClass             | `nfs-csi`                                                                                                         |
-| Dashboard                        | Headlamp                                                                                                          |
-| Metrics                          | Metrics Server                                                                                                    |
-| Application logging              | Optional ECK-managed Elasticsearch, Kibana, and Filebeat prepared; not fully running due to local resource limits |
+| Component                        | Value                                                                                                               |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| Kubernetes version               | `v1.36.2`                                                                                                           |
+| OS                               | Ubuntu Server 24.04.4 LTS                                                                                           |
+| Kernel                           | `6.8.0-124-generic`                                                                                                 |
+| Container runtime                | `containerd://2.3.2`                                                                                                |
+| Bootstrap method                 | `kubeadm`                                                                                                           |
+| Control-plane nodes              | 3                                                                                                                   |
+| Worker nodes                     | 2                                                                                                                   |
+| etcd topology                    | Stacked etcd across the three control-plane nodes                                                                   |
+| CNI                              | Canal                                                                                                               |
+| Pod CIDR                         | `10.244.0.0/16`                                                                                                     |
+| Service CIDR                     | `10.96.0.0/12`                                                                                                      |
+| Kubernetes API VIP               | `192.168.30.250`                                                                                                    |
+| Service LoadBalancer provider    | kube-vip                                                                                                            |
+| LoadBalancer IP pool             | `192.168.30.200-192.168.30.219`                                                                                     |
+| API Gateway / Ingress Controller | Traefik                                                                                                             |
+| Traefik LoadBalancer IP          | `192.168.30.200`                                                                                                    |
+| Storage backend                  | NFS + NFS CSI                                                                                                       |
+| Default StorageClass             | `nfs-csi`                                                                                                           |
+| Dashboard                        | Headlamp                                                                                                            |
+| Metrics                          | Metrics Server                                                                                                      |
+| Application logging              | Optional ECK-managed Elasticsearch, Kibana, and Filebeat prepared; partially validated due to local resource limits |
 
 The control-plane nodes use the standard kubeadm stacked-etcd topology. This gives control-plane redundancy for the lab while keeping the architecture simpler than an external etcd cluster.
 
@@ -471,12 +497,12 @@ For local browser access, the client machine must resolve the hostname to the Tr
 
 The project includes an optional ECK-managed observability design for centralized application logging.
 
-| Component     | Purpose                                                | Status                                           |
-| ------------- | ------------------------------------------------------ | ------------------------------------------------ |
-| ECK Operator  | Manages Elastic resources inside Kubernetes            | Prepared                                         |
-| Elasticsearch | Stores and indexes application log events              | Prepared through ECK Stack values                |
-| Kibana        | Provides log search and visualization                  | Prepared, but pending / not-ready during testing |
-| Filebeat      | Collects Kubernetes container logs from node log paths | Prepared as an ECK Beat resource                 |
+| Component     | Purpose                                                | Status                                                               |
+| ------------- | ------------------------------------------------------ | -------------------------------------------------------------------- |
+| ECK Operator  | Manages Elastic resources inside Kubernetes            | Deployed                                                             |
+| Elasticsearch | Stores and indexes application log events              | Running                                                              |
+| Kibana        | Provides log search and visualization                  | Partially validated; restarted due to Node.js heap memory exhaustion |
+| Filebeat      | Collects Kubernetes container logs from node log paths | Prepared as an ECK Beat resource                                     |
 
 The initial logging target is the application namespace:
 
@@ -519,7 +545,15 @@ kubernetes.namespace : "app-prod" and kubernetes.pod.name : ops-database*
 
 Important status note:
 
-The ECK observability stack was not fully deployed in the final lab because it exceeded the available CPU and memory on the current KVM host. Kibana remained pending / not-ready during testing. Therefore, ECK/Filebeat observability is documented as prepared optional work rather than a completed verified component.
+The ECK observability stack was partially validated in the final lab. The ECK Operator was deployed, and Elasticsearch reached a running state. Kibana was scheduled on `kubeworker-2` and connected to Elasticsearch, but it repeatedly restarted because the Kibana Node.js process ran out of heap memory.
+
+Observed error:
+
+```text
+FATAL ERROR: Ineffective mark-compacts near heap limit Allocation failed - JavaScript heap out of memory
+```
+
+This means the issue was not Kubernetes scheduling or Elasticsearch connectivity. The limitation was caused by insufficient available memory for Kibana on the current KVM lab host. Therefore, ECK/Filebeat observability is documented as prepared and partially validated optional work rather than a fully completed verified component.
 
 Detailed deployment and troubleshooting notes are documented in:
 
@@ -554,6 +588,14 @@ Deploy the ECK Stack values:
 helm install elastic-stack elastic/eck-stack \
   -n elastic-stack \
   --create-namespace \
+  -f manifests/observability/elk/eck-stack-values.yaml
+```
+
+For updates to the ECK Stack values:
+
+```bash
+helm upgrade elastic-stack elastic/eck-stack \
+  -n elastic-stack \
   -f manifests/observability/elk/eck-stack-values.yaml
 ```
 
@@ -863,7 +905,7 @@ ECK-managed Elasticsearch, Kibana, and Filebeat were selected for the optional c
 
 Filebeat is suitable for Kubernetes node-level log collection because it can run as a DaemonSet-style workload, read Kubernetes pod logs from node log paths, enrich events with Kubernetes metadata, and forward application logs into Elasticsearch.
 
-In this submission, ECK observability is documented as an optional extension rather than a completed verified component because the local KVM host did not have enough spare CPU and memory to run the full observability layer reliably. Kibana remained pending / not-ready during testing.
+In this submission, ECK observability is documented as an optional extension rather than a completed verified component. The ECK Operator and Elasticsearch were deployed successfully, and Kibana was able to connect to Elasticsearch. However, Kibana repeatedly restarted due to Node.js heap memory exhaustion on the resource-limited KVM host. A larger host or dedicated observability worker node would be required to complete full validation.
 
 ---
 
@@ -879,6 +921,8 @@ The Phase 2 NetworkPolicies and Pod Disruption Budgets were created in advance f
 
 ECK observability is treated as an optional extension phase. The prepared design deploys Elasticsearch and Kibana through the ECK Stack Helm chart, and Filebeat is deployed as an ECK Beat resource to collect application logs from Kubernetes nodes.
 
+LibreNMS is planned as a future infrastructure monitoring and alerting layer for the Proxmox host, OPNsense, Kubernetes VMs, and the NFS storage VM. This would complement ECK/Filebeat by monitoring host, device, network interface, disk, and reachability health outside Kubernetes.
+
 ---
 
 ## Known Limitations
@@ -887,12 +931,14 @@ The mandatory core phases have been completed and verified. The following limita
 
 * The NFS server is a single storage server and is not fully redundant.
 * Full VM provisioning is documented, but not yet fully automated with Terraform or Ansible.
-* ECK observability was prepared but not completed because the local host did not have enough available CPU and memory.
-* Kibana remained pending / not-ready during ECK observability testing.
+* ECK observability was prepared and partially validated, with Elasticsearch running successfully.
+* Kibana was scheduled and connected to Elasticsearch, but restarted due to Node.js heap memory exhaustion on the resource-limited KVM host.
+* Full Filebeat-to-Elasticsearch validation should be completed on a larger host or dedicated observability worker node.
 * Scheduled PostgreSQL backup automation is not yet implemented.
 * RTO and RPO targets are not yet formally defined or tested.
 * Load testing and performance analysis are not yet complete.
 * CI/CD and automated rollback are planned but not yet implemented.
+* LibreNMS infrastructure monitoring and alerting is planned but not yet implemented.
 * More detailed operational runbooks are planned for node replacement, scaling, backup, and recovery.
 
 ---
@@ -903,6 +949,7 @@ The mandatory core phases have been completed. The following items are planned a
 
 * Add Terraform or Ansible automation for VM provisioning and full cluster rebuilds
 * Complete ECK-managed Elasticsearch, Kibana, and Filebeat validation on a larger lab host
+* Add LibreNMS for Proxmox, OPNsense, Kubernetes VM, NFS VM, SNMP monitoring, and infrastructure alerting
 * Add scheduled PostgreSQL backup automation
 * Define and test RTO/RPO targets
 * Add load testing and performance analysis

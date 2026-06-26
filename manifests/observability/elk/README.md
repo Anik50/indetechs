@@ -6,9 +6,15 @@ This observability layer is included as an optional extension.
 
 The stack was prepared using **Elastic Cloud on Kubernetes (ECK)**. Elasticsearch and Kibana are deployed using the ECK Stack Helm chart, and Filebeat is deployed as an ECK `Beat` resource.
 
-It was not fully completed in the final lab environment because the current KVM host did not have enough spare CPU and memory to run Elasticsearch, Kibana, Filebeat, and the completed Kubernetes application stack at the same time.
+Elasticsearch was successfully deployed and reached a running state. Kibana was scheduled and connected to Elasticsearch, but it did not remain healthy in the final lab environment because of limited available memory on the KVM host.
 
-During testing, Kibana remained pending / not-ready because of resource pressure. For that reason, this section is documented as prepared optional work rather than a verified completed component.
+During testing, Kibana restarted with the following memory error:
+
+```text
+FATAL ERROR: Ineffective mark-compacts near heap limit Allocation failed - JavaScript heap out of memory
+```
+
+For that reason, this section is documented as prepared and partially validated optional work rather than a fully verified completed component.
 
 ---
 
@@ -23,7 +29,7 @@ Application Pods
   -> Kibana
 ```
 
-Filebeat collects Kubernetes container logs from the nodes and sends them to Elasticsearch. Kibana is used to search and visualize the logs.
+Filebeat collects Kubernetes container logs from the nodes and sends them directly to Elasticsearch. Kibana is used to search and visualize the logs.
 
 The initial logging scope is focused on the application namespace:
 
@@ -60,8 +66,6 @@ helm repo add elastic https://helm.elastic.co
 helm repo update
 ```
 
----
-
 ### 2. Install the ECK Operator
 
 ```bash
@@ -76,20 +80,20 @@ Verify:
 kubectl get pods -n elastic-system
 ```
 
-Expected result:
-
-```text
-elastic-operator-...   1/1   Running
-```
-
----
-
 ### 3. Deploy Elasticsearch and Kibana
 
 ```bash
 helm install elastic-stack elastic/eck-stack \
   -n elastic-stack \
   --create-namespace \
+  -f manifests/observability/elk/eck-stack-values.yaml
+```
+
+For updates:
+
+```bash
+helm upgrade elastic-stack elastic/eck-stack \
+  -n elastic-stack \
   -f manifests/observability/elk/eck-stack-values.yaml
 ```
 
@@ -107,10 +111,6 @@ Expected result when enough resources are available:
 elasticsearch-es-default-0   Running
 kibana-kb-...                Running
 ```
-
-In the current lab, Kibana may remain pending / not-ready because of limited CPU and memory.
-
----
 
 ### 4. Deploy Filebeat
 
@@ -150,12 +150,6 @@ Open:
 https://localhost:5601
 ```
 
-If the service name is different, use the actual service name shown by:
-
-```bash
-kubectl get svc -n elastic-stack
-```
-
 ---
 
 ## Kibana Login
@@ -192,10 +186,12 @@ curl -H "Host: ops.indetechs.local" http://192.168.30.200/
 curl -H "Host: ops.indetechs.local" http://192.168.30.200/api/tasks
 ```
 
-Check the observability pods:
+Check Elastic resources:
 
 ```bash
+kubectl get pods -n elastic-system
 kubectl get pods -n elastic-stack -o wide
+kubectl get elasticsearch,kibana,beat -n elastic-stack
 ```
 
 Check Filebeat:
@@ -236,7 +232,7 @@ kubernetes.namespace : "app-prod" and kubernetes.pod.name : ops-database*
 
 ## Troubleshooting
 
-### Kibana is Pending
+### Kibana Restarts or Is Not Ready
 
 Check the pod and events:
 
@@ -246,20 +242,28 @@ kubectl describe pod -n elastic-stack -l kibana.k8s.elastic.co/name=kibana
 kubectl get events -n elastic-stack --sort-by=.lastTimestamp
 ```
 
-Likely causes:
+Check Kibana logs:
+
+```bash
+kubectl logs -n elastic-stack <kibana-pod-name> --tail=200
+kubectl logs -n elastic-stack <kibana-pod-name> --previous --tail=200
+```
+
+If logs show:
 
 ```text
-Insufficient cpu
-Insufficient memory
+FATAL ERROR: Ineffective mark-compacts near heap limit Allocation failed - JavaScript heap out of memory
 ```
+
+then Kibana needs more memory.
 
 Possible fixes:
 
-* increase worker node CPU or memory;
+* increase Kibana memory request and limit;
+* set a larger Node.js heap size for Kibana;
 * add a dedicated observability worker node;
-* remove or adjust the node selector;
 * reduce other non-essential workloads;
-* lower Kibana resource requests for lab testing.
+* move Kibana to a node with more available memory.
 
 ---
 
@@ -317,16 +321,16 @@ Generate fresh application traffic:
 curl -H "Host: ops.indetechs.local" http://192.168.30.200/api/tasks
 ```
 
-Check Filebeat logs:
-
-```bash
-kubectl logs -n elastic-stack daemonset/filebeat-beat-filebeat
-```
-
 Confirm that application pods are running in the expected namespace:
 
 ```bash
 kubectl get pods -n app-prod
+```
+
+Check Filebeat logs:
+
+```bash
+kubectl logs -n elastic-stack daemonset/filebeat-beat-filebeat
 ```
 
 Search in Kibana with:
@@ -377,10 +381,11 @@ kubectl get pv
 
 With more hardware resources, the next steps would be:
 
-* add a dedicated worker node for observability workloads;
-* tune Elasticsearch and Kibana resource requests;
+* increase Kibana memory and complete Kibana validation;
 * complete Filebeat-to-Elasticsearch validation;
 * create Kibana dashboards for frontend, backend, and database logs;
-* add alerts for pod restarts, high CPU/memory usage, and storage issues;
+* add a dedicated worker node for observability workloads;
+* add infrastructure monitoring with LibreNMS;
+* configure alerts for pod restarts, high CPU/memory usage, disk pressure, and storage issues;
 * add log retention policies;
 * document backup and restore for Elasticsearch data.
