@@ -334,7 +334,7 @@ Helm is used for platform-level services where chart-based lifecycle management 
 │   ├── headlamp-workloads.png
 │   ├── prod-namespace.png
 │   ├── nodes-cluster-ready.png
-│   ├── storage-pvc-pv.png
+│   ├── storage_class_csi.png
 │   ├── storage-pvc-pv.png
 │   └── traefik-kubevip-loadbalancer.png
 └── scripts/
