@@ -8,6 +8,8 @@ The environment is deployed on **Proxmox VE using KVM/QEMU virtual machines**. *
 
 The mandatory core phases are complete. Optional observability work using **ECK-managed Elasticsearch, Kibana, and Filebeat** was prepared and partially validated. Elasticsearch reached a running state, while Kibana was scheduled and connected to Elasticsearch but restarted due to Node.js heap memory exhaustion on the resource-limited KVM host.
 
+Optional disaster recovery, CI/CD, private registry, and infrastructure monitoring designs are documented as future production-style extensions.
+
 ---
 
 ## Current Progress
@@ -17,33 +19,35 @@ The mandatory core phases are complete. Optional observability work using **ECK-
 | Phase 1  | KVM infrastructure setup                                                                                                           | Complete              |
 | Phase 2  | Kubernetes cluster setup, storage, networking, and security controls                                                               | Complete              |
 | Phase 3  | Three-tier application deployment with Traefik, kube-vip LoadBalancer, HPA, NetworkPolicies, and NFS-backed PostgreSQL persistence | Complete              |
-| Phase 4+ | Optional automation, ECK observability, DR, CI/CD, testing, and deeper operational runbooks                                        | Partial / Future work |
+| Phase 4+ | Optional automation, ECK observability, DR planning, CI/CD, testing, and deeper operational runbooks                               | Partial / Future work |
 
 ---
 
 ## Assessment Coverage Status
 
-| Area                      | Requirement / Expectation                                  | Status      | Notes                                                                                                          |
-| ------------------------- | ---------------------------------------------------------- | ----------- | -------------------------------------------------------------------------------------------------------------- |
-| Infrastructure            | KVM-based VM environment                                   | Complete    | Proxmox VE with KVM/QEMU virtual machines.                                                                     |
-| Infrastructure            | Separate control-plane, worker, storage, and network roles | Complete    | Three control-plane nodes, two worker nodes, NFS VM, and OPNsense gateway.                                     |
-| Networking                | Isolated management and storage networks                   | Complete    | Management network uses `192.168.30.0/24`; storage network uses `192.168.32.0/24`.                             |
-| Networking                | Private access model                                       | Complete    | Access is through OPNsense and WireGuard VPN.                                                                  |
-| Host preparation          | Kernel modules, sysctl, swap, runtime, and SSH hardening   | Complete    | Kubernetes host prerequisites and containerd are configured.                                                   |
-| Kubernetes                | kubeadm cluster bootstrap                                  | Complete    | Cluster created with three control-plane nodes and two workers.                                                |
-| Kubernetes                | CNI and NetworkPolicy support                              | Complete    | Canal CNI deployed.                                                                                            |
-| Kubernetes                | High availability API endpoint                             | Complete    | kube-vip API VIP configured at `192.168.30.250`.                                                               |
-| Storage                   | Dynamic persistent storage                                 | Complete    | NFS CSI driver and default `nfs-csi` StorageClass configured.                                                  |
-| Security controls         | Namespaces, quotas, limits, NetworkPolicies, PDBs          | Complete    | Application security controls are included in manifests.                                                       |
-| Application               | Three-tier app deployment                                  | Complete    | Nginx frontend, Node.js backend, and PostgreSQL database deployed.                                             |
-| Application               | Persistent database validation                             | Complete    | PostgreSQL data survived pod deletion and recreation.                                                          |
-| Exposure                  | Gateway-based application access                           | Complete    | Traefik exposed through kube-vip LoadBalancer IP `192.168.30.200`.                                             |
-| Observability             | Kubernetes application log stack                           | Partial     | ECK Operator and Elasticsearch deployed; Kibana connected but restarted due to Node.js heap memory exhaustion. |
-| Observability             | Filebeat log collection                                    | Prepared    | Filebeat ECK Beat manifest is included for Kubernetes log collection.                                          |
-| Infrastructure monitoring | Hardware, VM, and network monitoring                       | Future work | LibreNMS is planned for Proxmox, OPNsense, Kubernetes VMs, NFS VM, SNMP monitoring, and alerting.              |
-| Automation                | Full VM and cluster rebuild automation                     | Future work | Helper scripts exist, but full Terraform/Ansible automation is not complete.                                   |
-| Backup / DR               | PostgreSQL backup, restore, RTO, RPO                       | Future work | Planned but not yet implemented.                                                                               |
-| CI/CD                     | Automated image build and deployment                       | Future work | Planned but not yet implemented.                                                                               |
+| Area                      | Requirement / Expectation                                  | Status                             | Notes                                                                                                                            |
+| ------------------------- | ---------------------------------------------------------- | ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| Infrastructure            | KVM-based VM environment                                   | Complete                           | Proxmox VE with KVM/QEMU virtual machines.                                                                                       |
+| Infrastructure            | Separate control-plane, worker, storage, and network roles | Complete                           | Three control-plane nodes, two worker nodes, NFS VM, and OPNsense gateway.                                                       |
+| Networking                | Isolated management and storage networks                   | Complete                           | Management network uses `192.168.30.0/24`; storage network uses `192.168.32.0/24`.                                               |
+| Networking                | Private access model                                       | Complete                           | Access is through OPNsense and WireGuard VPN. OPNsense management is not exposed on the WAN public IP.                           |
+| Host preparation          | Kernel modules, sysctl, swap, runtime, and SSH hardening   | Complete                           | Kubernetes host prerequisites and containerd are configured.                                                                     |
+| Kubernetes                | kubeadm cluster bootstrap                                  | Complete                           | Cluster created with three control-plane nodes and two workers.                                                                  |
+| Kubernetes                | CNI and NetworkPolicy support                              | Complete                           | Canal CNI deployed.                                                                                                              |
+| Kubernetes                | High availability API endpoint                             | Complete                           | kube-vip API VIP configured at `192.168.30.250`.                                                                                 |
+| Storage                   | Dynamic persistent storage                                 | Complete                           | NFS CSI driver and default `nfs-csi` StorageClass configured.                                                                    |
+| Security controls         | Namespaces, quotas, limits, NetworkPolicies, PDBs          | Complete                           | Application security controls are included in manifests.                                                                         |
+| Application               | Three-tier app deployment                                  | Complete                           | Nginx frontend, Node.js backend, and PostgreSQL database deployed.                                                               |
+| Application               | Persistent database validation                             | Complete                           | PostgreSQL data survived pod deletion and recreation.                                                                            |
+| Exposure                  | Gateway-based application access                           | Complete                           | Traefik exposed through kube-vip LoadBalancer IP `192.168.30.200`.                                                               |
+| Observability             | Kubernetes application log stack                           | Partial                            | ECK Operator and Elasticsearch deployed; Kibana connected but restarted due to Node.js heap memory exhaustion.                   |
+| Observability             | Filebeat log collection                                    | Prepared                           | Filebeat ECK Beat manifest is included for Kubernetes log collection.                                                            |
+| Infrastructure monitoring | Hardware, VM, and network monitoring                       | Future work                        | LibreNMS is planned for Proxmox, OPNsense, Kubernetes VMs, NFS VM, SNMP monitoring, and alerting.                                |
+| Backup / DR               | PostgreSQL backup, restore, RTO, RPO                       | Documented / Future implementation | DR architecture and runbook are documented; implementation and testing are future work.                                          |
+| DR Planning               | Disaster recovery architecture and failover runbook        | Documented / Future implementation | Independent Primary/DR design documented with async database replication, PBS sync, Cloudflare failover, and break-glass access. |
+| Automation                | Full VM and cluster rebuild automation                     | Future work                        | Helper scripts exist, but full Terraform/Ansible automation is not complete.                                                     |
+| CI/CD                     | Automated image build and deployment                       | Future work                        | Jenkins pipeline automation is planned.                                                                                          |
+| Registry                  | Secure private image registry and image scanning           | Future work                        | Harbor with Trivy scanning is planned.                                                                                           |
 
 ---
 
@@ -93,7 +97,7 @@ The management network carries Kubernetes API access, node management, kubelet c
 
 The storage network is isolated from the management network and is dedicated to NFS traffic between the Kubernetes nodes and the storage VM.
 
-External access is intentionally private. Access enters through OPNsense and WireGuard rather than exposing Kubernetes services directly to the public internet.
+External access is intentionally private. Access enters through OPNsense and WireGuard rather than exposing Kubernetes services directly to the public internet. OPNsense administration is restricted to the private management network or VPN path and is not exposed through the WAN public IP.
 
 ---
 
@@ -130,6 +134,53 @@ Detailed observability notes are kept with the observability manifests:
 
 ```text
 manifests/observability/elk/README.md
+```
+
+---
+
+## Optional Disaster Recovery Planning
+
+A disaster recovery plan is included as a future production-style extension.
+
+The current lab is a single-site Kubernetes deployment. The DR document describes a target two-site architecture with independent Primary and DR environments. The design avoids stretched Proxmox, stretched Ceph, QDevice, and cross-site Kubernetes control planes.
+
+Target DR model:
+
+```text
+Primary DC
+  -> local OPNsense HA
+  -> local hypervisor/storage
+  -> local Kubernetes cluster
+  -> production application services
+  -> active database
+
+DR DC
+  -> local OPNsense HA
+  -> local hypervisor/storage
+  -> local Kubernetes cluster
+  -> warm/cold application services
+  -> async database replica
+```
+
+The critical cross-site flow is async database replication, with backup synchronization and controlled monitoring/admin traffic over a routed site-to-site connection.
+
+Target objectives:
+
+| Item             | Target                                           |
+| ---------------- | ------------------------------------------------ |
+| RPO              | Approximately 30 minutes                         |
+| RTO              | Approximately 1–2 hours for manual DR activation |
+| Failover model   | Manual or controlled failover                    |
+| Site model       | Independent Primary and DR sites                 |
+| Storage model    | Site-local storage only                          |
+| Kubernetes model | One Kubernetes cluster per site                  |
+
+The full DR plan and architecture diagram are documented in:
+
+```text
+docs/disaster-recovery-plan.md
+screenshots/dr-architecture.png
+diagrams/dr-architecture.drawio
 ```
 
 ---
@@ -173,6 +224,8 @@ manifests/observability/elk/README.md
 | Dashboard                        | Headlamp                                                                                                            |
 | Metrics                          | Metrics Server                                                                                                      |
 | Application logging              | Optional ECK-managed Elasticsearch, Kibana, and Filebeat prepared; partially validated due to local resource limits |
+| Disaster recovery                | Target independent Primary/DR architecture documented as future implementation                                      |
+| CI/CD and registry               | Jenkins and Harbor planned as future implementation                                                                 |
 
 The control-plane nodes use the standard kubeadm stacked-etcd topology. This gives control-plane redundancy for the lab while keeping the architecture simpler than an external etcd cluster.
 
@@ -194,6 +247,9 @@ The control-plane nodes use the standard kubeadm stacked-etcd topology. This giv
 | Elasticsearch                 | `elastic-stack`          | ECK Stack Helm values                 | Optional application log indexing and storage             |
 | Kibana                        | `elastic-stack`          | ECK Stack Helm values                 | Optional log search and visualization                     |
 | Filebeat                      | `elastic-stack`          | ECK Beat resource / DaemonSet         | Optional Kubernetes application log collection from nodes |
+| Jenkins                       | External / planned       | Docker                                | Planned CI/CD automation server                           |
+| Harbor                        | External / planned       | Docker Compose / Harbor installer     | Planned private image registry and vulnerability scanning |
+| LibreNMS                      | External / planned       | Future implementation                 | Planned infrastructure monitoring and alerting            |
 
 Helm is used for platform-level services where chart-based lifecycle management is helpful. Application workloads are deployed with Kubernetes manifests and Kustomize so the workload configuration remains transparent and easy to review.
 
@@ -220,7 +276,10 @@ Helm is used for platform-level services where chart-based lifecycle management 
 │       ├── Dockerfile
 │       ├── init.sql
 │       └── README.md
+├── diagrams/
+│   └── dr-architecture.drawio
 ├── docs/
+│   ├── disaster-recovery-plan.md
 │   ├── headlamp-dashboard.md
 │   ├── kube-vip-loadbalancer.md
 │   ├── network-topology.md
@@ -266,6 +325,7 @@ Helm is used for platform-level services where chart-based lifecycle management 
 │       └── networkpolicy-allow-traefik.yaml
 ├── screenshots/
 │   ├── .gitkeep
+│   ├── dr-architecture.png
 │   └── headlamp-workloads.png
 └── scripts/
     ├── build-push-phase3-images.sh
@@ -282,18 +342,19 @@ Helm is used for platform-level services where chart-based lifecycle management 
 
 ## Phase Documentation
 
-| Document                                 | Purpose                                                                      |
-| ---------------------------------------- | ---------------------------------------------------------------------------- |
-| `docs/phase-1-infrastructure.md`         | KVM, Proxmox, VM, OS, SSH, and host preparation details                      |
-| `docs/phase-2-kubernetes-cluster.md`     | Kubernetes bootstrap, node joining, CNI, storage, and cluster controls       |
-| `docs/phase-3-application-deployment.md` | Application deployment, service exposure, persistence, and validation        |
-| `docs/network-topology.md`               | Management, storage, VIP, and service exposure network design                |
-| `docs/storage-design.md`                 | NFS server, NFS CSI, StorageClass, PVC, and persistence decisions            |
-| `docs/security-hardening.md`             | Infrastructure and Kubernetes hardening controls                             |
-| `docs/headlamp-dashboard.md`             | Dashboard deployment and operational visibility                              |
-| `docs/kube-vip-loadbalancer.md`          | API VIP and service LoadBalancer design                                      |
-| `docs/traefik-api-gateway.md`            | Traefik gateway and Ingress routing                                          |
-| `manifests/observability/elk/README.md`  | Optional ECK-managed Elasticsearch, Kibana, and Filebeat observability notes |
+| Document                                 | Purpose                                                                                                             |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `docs/phase-1-infrastructure.md`         | KVM, Proxmox, VM, OS, SSH, and host preparation details                                                             |
+| `docs/phase-2-kubernetes-cluster.md`     | Kubernetes bootstrap, node joining, CNI, storage, and cluster controls                                              |
+| `docs/phase-3-application-deployment.md` | Application deployment, service exposure, persistence, and validation                                               |
+| `docs/network-topology.md`               | Management, storage, VIP, and service exposure network design                                                       |
+| `docs/storage-design.md`                 | NFS server, NFS CSI, StorageClass, PVC, and persistence decisions                                                   |
+| `docs/security-hardening.md`             | Infrastructure and Kubernetes hardening controls                                                                    |
+| `docs/headlamp-dashboard.md`             | Dashboard deployment and operational visibility                                                                     |
+| `docs/kube-vip-loadbalancer.md`          | API VIP and service LoadBalancer design                                                                             |
+| `docs/traefik-api-gateway.md`            | Traefik gateway and Ingress routing                                                                                 |
+| `docs/disaster-recovery-plan.md`         | Target DC/DR architecture, RPO/RTO planning, database replication, backup sync, Cloudflare failover, and DR runbook |
+| `manifests/observability/elk/README.md`  | Optional ECK-managed Elasticsearch, Kibana, and Filebeat observability notes                                        |
 
 ---
 
@@ -832,10 +893,14 @@ kubernetes.namespace : "app-prod"
 
 The cluster uses a private management network and VPN-based access model. Kubernetes services are not intentionally exposed directly to the public internet.
 
+OPNsense administration is not exposed on the WAN public IP. Web GUI and SSH access are restricted to the private management network and WireGuard VPN. WAN firewall rules do not allow access to OPNsense management ports, and public access is limited to required application or VPN endpoints only.
+
 Security controls include:
 
 * OPNsense firewall boundary
 * WireGuard VPN access
+* OPNsense GUI and SSH restricted to VPN or management networks
+* No WAN exposure for OPNsense administration
 * SSH hardening
 * Key-based SSH authentication
 * Non-root administrative user
@@ -881,6 +946,8 @@ Proxmox VE was used as the KVM/QEMU virtualization platform because it provides 
 
 OPNsense provides a clear firewall and routing boundary for the lab. WireGuard allows private access into the management subnet without exposing Kubernetes services directly to the public internet.
 
+OPNsense management is restricted to VPN or private management networks. The WAN public IP is not used for OPNsense GUI or SSH administration.
+
 ### Canal CNI
 
 Canal was selected because it combines Flannel-style pod networking with Calico NetworkPolicy support. This is a practical fit for a small local Kubernetes cluster where simple routing and working NetworkPolicy enforcement are both required.
@@ -907,6 +974,22 @@ Filebeat is suitable for Kubernetes node-level log collection because it can run
 
 In this submission, ECK observability is documented as an optional extension rather than a completed verified component. The ECK Operator and Elasticsearch were deployed successfully, and Kibana was able to connect to Elasticsearch. However, Kibana repeatedly restarted due to Node.js heap memory exhaustion on the resource-limited KVM host. A larger host or dedicated observability worker node would be required to complete full validation.
 
+### Disaster Recovery Planning
+
+A future disaster recovery design is documented separately to show how this platform could be extended beyond the current single-site lab.
+
+The DR design uses two independent sites rather than stretched clusters. Each site has its own OPNsense HA pair, hypervisor/storage stack, Kubernetes cluster, ingress layer, and backup service. The sites are connected through routed site-to-site connectivity, with only controlled cross-site traffic such as async database replication, backup synchronization, monitoring, logging, and admin access.
+
+This avoids WAN-sensitive designs such as stretched Proxmox, stretched Ceph, QDevice-based cross-site quorum, and cross-site Kubernetes control planes.
+
+### Jenkins and Harbor
+
+Jenkins and Harbor are documented as future CI/CD and private registry components.
+
+Jenkins is planned for automated build, tag, push, scan, deploy, and rollback workflows. Harbor is planned as the private container registry for storing application images and scanning them before Kubernetes deployment.
+
+These components are not part of the verified Phase 1–3 deployment, but they are included as a future production-style improvement path.
+
 ---
 
 ## Operational Notes
@@ -922,6 +1005,8 @@ The Phase 2 NetworkPolicies and Pod Disruption Budgets were created in advance f
 ECK observability is treated as an optional extension phase. The prepared design deploys Elasticsearch and Kibana through the ECK Stack Helm chart, and Filebeat is deployed as an ECK Beat resource to collect application logs from Kubernetes nodes.
 
 LibreNMS is planned as a future infrastructure monitoring and alerting layer for the Proxmox host, OPNsense, Kubernetes VMs, and the NFS storage VM. This would complement ECK/Filebeat by monitoring host, device, network interface, disk, and reachability health outside Kubernetes.
+
+Disaster recovery is documented as a target future architecture rather than a completed implementation. The DR plan describes independent Primary and DR sites, async database replication, backup synchronization, Cloudflare failover, break-glass access, and failover/failback runbooks.
 
 ---
 
@@ -1125,6 +1210,7 @@ The planned Jenkins pipeline will:
 
 This CI/CD work is documented as future improvement and is not part of the verified mandatory Phase 1–3 deployment.
 
+---
 
 ## Known Limitations
 
@@ -1135,9 +1221,13 @@ The mandatory core phases have been completed and verified. The following limita
 * ECK observability was prepared and partially validated, with Elasticsearch running successfully.
 * Kibana was scheduled and connected to Elasticsearch, but restarted due to Node.js heap memory exhaustion on the resource-limited KVM host.
 * Full Filebeat-to-Elasticsearch validation should be completed on a larger host or dedicated observability worker node.
+* The documented two-site DR architecture is planned but not yet implemented.
 * Scheduled PostgreSQL backup automation is not yet implemented.
-* RTO and RPO targets are not yet formally defined or tested.
+* RTO and RPO targets are documented as planning targets but are not yet formally tested.
+* DR failover and failback runbooks are documented but not yet rehearsed in a live DR environment.
 * Load testing and performance analysis are not yet complete.
+* Jenkins CI/CD automation is planned but not yet implemented.
+* Harbor private registry and image vulnerability scanning are planned but not yet implemented.
 * CI/CD and automated rollback are planned but not yet implemented.
 * LibreNMS infrastructure monitoring and alerting is planned but not yet implemented.
 * More detailed operational runbooks are planned for node replacement, scaling, backup, and recovery.
@@ -1150,9 +1240,13 @@ The mandatory core phases have been completed. The following items are planned a
 
 * Add Terraform or Ansible automation for VM provisioning and full cluster rebuilds
 * Complete ECK-managed Elasticsearch, Kibana, and Filebeat validation on a larger lab host
-* Add LibreNMS for Proxmox, OPNsense, Kubernetes VM, NFS VM, SNMP monitoring, and infrastructure alerting
+* Implement the documented DR plan with a separate DR site, async database replication, backup synchronization, Cloudflare failover, and tested failover/failback runbooks
 * Add scheduled PostgreSQL backup automation
-* Define and test RTO/RPO targets
+* Define and test final RTO/RPO targets
+* Add LibreNMS for Proxmox, OPNsense, Kubernetes VM, NFS VM, SNMP monitoring, and infrastructure alerting
+* Add Jenkins for CI/CD pipeline automation
+* Add Harbor as a private container registry with vulnerability scanning
+* Build a Jenkins pipeline to build, scan, push, and deploy application images through Harbor
 * Add load testing and performance analysis
 * Add Pod Security Admission profiles
 * Add CI/CD for automated image builds and Kubernetes deployment
