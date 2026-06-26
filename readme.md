@@ -325,8 +325,17 @@ Helm is used for platform-level services where chart-based lifecycle management 
 │       └── networkpolicy-allow-traefik.yaml
 ├── screenshots/
 │   ├── .gitkeep
+│   ├── all-deployments-headlamp.png
+│   ├── app-frontend.png
 │   ├── dr-architecture.png
-│   └── headlamp-workloads.png
+│   ├── eck-observability.png
+│   ├── full-cluster-metrics-server.png
+│   ├── headlamp-workloads.png
+│   ├── prod-namespace.png
+│   ├── nodes-cluster-ready.png
+│   ├── storage-pvc-pv.png
+│   ├── storage-pvc-pv.png
+│   └── traefik-kubevip-loadbalancer.png
 └── scripts/
     ├── build-push-phase3-images.sh
     ├── create-phase3-secret.sh
