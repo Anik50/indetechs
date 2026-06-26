@@ -1,4 +1,4 @@
-# Indetechs Kubernetes Technical Assessment
+# Indetechs Technical Assessment
 
 ## Production-Grade Kubernetes Cluster on KVM with Persistent Storage
 
