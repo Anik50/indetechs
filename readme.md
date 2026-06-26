@@ -4,20 +4,20 @@
 
 This repository documents and stores the configuration, manifests, scripts, and evidence for a local production-style Kubernetes environment built for the Indetechs Software Limited IT Operations Officer technical assessment.
 
-The environment is deployed on Proxmox VE using KVM/QEMU virtual machines. OPNsense provides routing and firewall functionality, with WireGuard VPN access into the private management subnet. Kubernetes is deployed using kubeadm with three control-plane nodes, two worker nodes, a dedicated NFS storage VM, Canal CNI, kube-vip for the Kubernetes API virtual IP, kube-vip LoadBalancer support, Traefik API gateway, Metrics Server, Headlamp dashboard, NFS CSI dynamic storage provisioning, and a containerized three-tier application.
+The environment is deployed on **Proxmox VE using KVM/QEMU virtual machines**. **OPNsense** provides routing and firewall functionality, with **WireGuard VPN** access into the private management subnet. Kubernetes is deployed using **kubeadm** with three control-plane nodes, two worker nodes, a dedicated NFS storage VM, Canal CNI, kube-vip for the Kubernetes API virtual IP, kube-vip LoadBalancer support, Traefik API gateway, Metrics Server, Headlamp dashboard, NFS CSI dynamic storage provisioning, and a containerized three-tier application.
 
-The final logging direction for application logs is ELK-based centralized logging using Elasticsearch, Logstash, Kibana, and Filebeat.
+The mandatory core phases are complete. Optional observability work using **ECK-managed Elasticsearch, Kibana, and Filebeat** was prepared, but it was not treated as a verified completed component because the current local KVM host did not have enough spare CPU and memory to run the observability stack reliably. During testing, Kibana remained pending / not-ready.
 
 ---
 
 ## Current Progress
 
-| Phase    | Scope                                                                                                                          | Status                |
-| -------- | ------------------------------------------------------------------------------------------------------------------------------ | --------------------- |
-| Phase 1  | KVM infrastructure setup                                                                                                       | Complete              |
-| Phase 2  | Kubernetes cluster setup, storage, networking, and security controls                                                           | Complete              |
-| Phase 3  | 3-tier application deployment with Traefik, kube-vip LoadBalancer, HPA, NetworkPolicies, and NFS-backed PostgreSQL persistence | Complete              |
-| Phase 4+ | Optional automation, ELK logging, DR, CI/CD, testing, and deeper operational runbooks                                          | Pending / Future work |
+| Phase    | Scope                                                                                                                              | Status                |
+| -------- | ---------------------------------------------------------------------------------------------------------------------------------- | --------------------- |
+| Phase 1  | KVM infrastructure setup                                                                                                           | Complete              |
+| Phase 2  | Kubernetes cluster setup, storage, networking, and security controls                                                               | Complete              |
+| Phase 3  | Three-tier application deployment with Traefik, kube-vip LoadBalancer, HPA, NetworkPolicies, and NFS-backed PostgreSQL persistence | Complete              |
+| Phase 4+ | Optional automation, ECK observability, DR, CI/CD, testing, and deeper operational runbooks                                        | Pending / Future work |
 
 ---
 
@@ -36,10 +36,10 @@ The final logging direction for application logs is ELK-based centralized loggin
                               vmbr1
                                 |
      -----------------------------------------------------------------
-     |            |            |            |           |             |
-kubemaster-1  kubemaster-2  kubemaster-3  worker-1  worker-2        nfs
-192.168.30.240 .241         .242          .243      .244            .235
-     |            |            |            |           |             |
+     |            |            |            |            |            |
+kubemaster-1  kubemaster-2  kubemaster-3  kubeworker-1 kubeworker-2  nfs
+192.168.30.240 .241         .242          .243         .244          .235
+     |            |            |            |            |            |
      -----------------------------------------------------------------
                          Kubernetes API VIP
                           192.168.30.250
@@ -56,12 +56,18 @@ kubemaster-1  kubemaster-2  kubemaster-3  worker-1  worker-2        nfs
                               vmbr2
                                 |
      -----------------------------------------------------------------
-     |            |            |            |           |             |
-kubemaster-1  kubemaster-2  kubemaster-3  worker-1  worker-2        nfs
-192.168.32.11 .12          .13           .21       .22             .10
+     |            |            |            |            |            |
+kubemaster-1  kubemaster-2  kubemaster-3  kubeworker-1 kubeworker-2  nfs
+192.168.32.11 .12          .13           .21          .22           .10
                                                                     |
                                                             /srv/nfs/k8s
 ```
+
+The management network carries Kubernetes API access, node management, kubelet communication, kube-vip LoadBalancer traffic, and Traefik application access.
+
+The storage network is isolated from the management network and is dedicated to NFS traffic between the Kubernetes nodes and the storage VM.
+
+External access is intentionally private. Access enters through OPNsense and WireGuard rather than exposing Kubernetes services directly to the public internet.
 
 ---
 
@@ -79,19 +85,26 @@ User / VPN Client
 
 ---
 
-## Logging Traffic Flow
+## Optional Observability Traffic Flow
 
 ```text
 Application Pods
   -> stdout / stderr container logs
   -> Node log files under /var/log/pods
-  -> Filebeat DaemonSet
-  -> Logstash
+  -> Filebeat ECK Beat / DaemonSet
   -> Elasticsearch
   -> Kibana
 ```
 
-Filebeat is intended to run as a DaemonSet so that one Filebeat pod runs on each Kubernetes node and collects container logs from that node. Logstash receives the logs, applies pipeline processing, and forwards structured events into Elasticsearch. Kibana is used to search and visualize application logs.
+Filebeat is intended to run on Kubernetes nodes and collect container logs from the node log paths. Filebeat enriches logs with Kubernetes metadata and forwards them to Elasticsearch. Kibana is used to search and visualize application logs.
+
+This observability layer is documented as an optional extension because the current KVM host did not have enough available CPU and memory to run it reliably alongside the completed Kubernetes platform and application workloads. Kibana remained pending / not-ready during testing.
+
+Detailed observability notes are kept with the observability manifests:
+
+```text
+manifests/observability/elk/README.md
+```
 
 ---
 
@@ -111,42 +124,50 @@ Filebeat is intended to run as a DaemonSet so that one Filebeat pod runs on each
 
 ## Cluster Summary
 
-| Component                        | Value                           |
-| -------------------------------- | ------------------------------- |
-| Kubernetes version               | `v1.36.2`                       |
-| OS                               | Ubuntu Server 24.04.4 LTS       |
-| Kernel                           | `6.8.0-124-generic`             |
-| Container runtime                | `containerd://2.3.2`            |
-| CNI                              | Canal                           |
-| Pod CIDR                         | `10.244.0.0/16`                 |
-| Service CIDR                     | `10.96.0.0/12`                  |
-| Kubernetes API VIP               | `192.168.30.250`                |
-| Service LoadBalancer provider    | kube-vip                        |
-| LoadBalancer IP pool             | `192.168.30.200-192.168.30.219` |
-| API Gateway / Ingress Controller | Traefik                         |
-| Traefik LoadBalancer IP          | `192.168.30.200`                |
-| Storage backend                  | NFS + NFS CSI                   |
-| Default StorageClass             | `nfs-csi`                       |
-| Dashboard                        | Headlamp                        |
-| Metrics                          | Metrics Server                  |
-| Application logging              | ELK with Filebeat               |
+| Component                        | Value                                                                                                             |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Kubernetes version               | `v1.36.2`                                                                                                         |
+| OS                               | Ubuntu Server 24.04.4 LTS                                                                                         |
+| Kernel                           | `6.8.0-124-generic`                                                                                               |
+| Container runtime                | `containerd://2.3.2`                                                                                              |
+| Bootstrap method                 | `kubeadm`                                                                                                         |
+| Control-plane nodes              | 3                                                                                                                 |
+| Worker nodes                     | 2                                                                                                                 |
+| etcd topology                    | Stacked etcd across the three control-plane nodes                                                                 |
+| CNI                              | Canal                                                                                                             |
+| Pod CIDR                         | `10.244.0.0/16`                                                                                                   |
+| Service CIDR                     | `10.96.0.0/12`                                                                                                    |
+| Kubernetes API VIP               | `192.168.30.250`                                                                                                  |
+| Service LoadBalancer provider    | kube-vip                                                                                                          |
+| LoadBalancer IP pool             | `192.168.30.200-192.168.30.219`                                                                                   |
+| API Gateway / Ingress Controller | Traefik                                                                                                           |
+| Traefik LoadBalancer IP          | `192.168.30.200`                                                                                                  |
+| Storage backend                  | NFS + NFS CSI                                                                                                     |
+| Default StorageClass             | `nfs-csi`                                                                                                         |
+| Dashboard                        | Headlamp                                                                                                          |
+| Metrics                          | Metrics Server                                                                                                    |
+| Application logging              | Optional ECK-managed Elasticsearch, Kibana, and Filebeat prepared; not fully running due to local resource limits |
+
+The control-plane nodes use the standard kubeadm stacked-etcd topology. This gives control-plane redundancy for the lab while keeping the architecture simpler than an external etcd cluster.
 
 ---
 
 ## Platform Components
 
-| Component                     | Namespace                | Deployment Method                     | Purpose                                                     |
-| ----------------------------- | ------------------------ | ------------------------------------- | ----------------------------------------------------------- |
-| Canal CNI                     | `kube-system`            | Kubernetes manifests                  | Pod networking and NetworkPolicy support                    |
-| kube-vip API VIP              | control-plane static pod | Static pod                            | Highly available Kubernetes API virtual IP                  |
-| kube-vip service LoadBalancer | `kube-system`            | Kubernetes manifests                  | LoadBalancer IP advertisement for services                  |
-| kube-vip cloud provider       | `kube-system`            | Kubernetes manifests                  | Assigns service LoadBalancer IPs from the configured pool   |
-| NFS CSI Driver                | `kube-system`            | Helm                                  | Dynamic provisioning of NFS-backed PersistentVolumes        |
-| Traefik                       | `traefik`                | Helm                                  | HTTP application gateway and Ingress controller             |
-| Headlamp                      | `headlamp`               | Helm                                  | Kubernetes dashboard visibility                             |
-| Metrics Server                | `kube-system`            | Kubernetes manifests / cluster add-on | Resource metrics for HPA and operational checks             |
-| ELK stack                     | `elastic-stack`          | Helm / ECK                            | Centralized application log storage, processing, and search |
-| Filebeat                      | `elastic-stack`          | ECK Beat resource / DaemonSet         | Collects Kubernetes application logs from nodes             |
+| Component                     | Namespace / Location     | Deployment Method                     | Purpose                                                   |
+| ----------------------------- | ------------------------ | ------------------------------------- | --------------------------------------------------------- |
+| Canal CNI                     | `kube-system`            | Kubernetes manifests                  | Pod networking and NetworkPolicy support                  |
+| kube-vip API VIP              | Control-plane static pod | Static pod                            | Highly available Kubernetes API virtual IP                |
+| kube-vip service LoadBalancer | `kube-system`            | Kubernetes manifests                  | LoadBalancer IP advertisement for services                |
+| kube-vip cloud provider       | `kube-system`            | Kubernetes manifests                  | Assigns service LoadBalancer IPs from the configured pool |
+| NFS CSI Driver                | `kube-system`            | Helm                                  | Dynamic provisioning of NFS-backed PersistentVolumes      |
+| Traefik                       | `traefik`                | Helm                                  | HTTP application gateway and Ingress controller           |
+| Headlamp                      | `headlamp`               | Helm                                  | Kubernetes dashboard visibility                           |
+| Metrics Server                | `kube-system`            | Kubernetes manifests / cluster add-on | Resource metrics for HPA and operational checks           |
+| ECK Operator                  | `elastic-system`         | Helm                                  | Optional operator for managing Elastic Stack resources    |
+| Elasticsearch                 | `elastic-stack`          | ECK Stack Helm values                 | Optional application log indexing and storage             |
+| Kibana                        | `elastic-stack`          | ECK Stack Helm values                 | Optional log search and visualization                     |
+| Filebeat                      | `elastic-stack`          | ECK Beat resource / DaemonSet         | Optional Kubernetes application log collection from nodes |
 
 Helm is used for platform-level services where chart-based lifecycle management is helpful. Application workloads are deployed with Kubernetes manifests and Kustomize so the workload configuration remains transparent and easy to review.
 
@@ -182,8 +203,7 @@ Helm is used for platform-level services where chart-based lifecycle management 
 │   ├── phase-3-application-deployment.md
 │   ├── security-hardening.md
 │   ├── storage-design.md
-│   ├── traefik-api-gateway.md
-│   └── elk-logging.md
+│   └── traefik-api-gateway.md
 ├── manifests/
 │   ├── kube-vip/
 │   │   ├── kube-vip-services-ds.yaml
@@ -205,9 +225,9 @@ Helm is used for platform-level services where chart-based lifecycle management 
 │   │   └── traefik-ingressclass.yaml
 │   ├── observability/
 │   │   └── elk/
+│   │       ├── README.md
 │   │       ├── eck-stack-values.yaml
-│   │       ├── filebeat.yaml
-│   │       └── logstash-pipeline.yaml
+│   │       └── filebeat.yaml
 │   └── workloads/
 │       ├── app-config.yaml
 │       ├── app-secret.example.yaml
@@ -236,46 +256,45 @@ Helm is used for platform-level services where chart-based lifecycle management 
 
 ## Phase Documentation
 
-| Document                                 | Purpose                                                                |
-| ---------------------------------------- | ---------------------------------------------------------------------- |
-| `docs/phase-1-infrastructure.md`         | KVM, Proxmox, VM, OS, SSH, and host preparation details                |
-| `docs/phase-2-kubernetes-cluster.md`     | Kubernetes bootstrap, node joining, CNI, storage, and cluster controls |
-| `docs/phase-3-application-deployment.md` | Application deployment, service exposure, persistence, and validation  |
-| `docs/network-topology.md`               | Management, storage, VIP, and service exposure network design          |
-| `docs/storage-design.md`                 | NFS server, NFS CSI, StorageClass, PVC, and persistence decisions      |
-| `docs/security-hardening.md`             | Infrastructure and Kubernetes hardening controls                       |
-| `docs/headlamp-dashboard.md`             | Dashboard deployment and operational visibility                        |
-| `docs/kube-vip-loadbalancer.md`          | API VIP and service LoadBalancer design                                |
-| `docs/traefik-api-gateway.md`            | Traefik gateway and Ingress routing                                    |
-| `docs/elk-logging.md`                    | ELK and Filebeat centralized application logging design                |
+| Document                                 | Purpose                                                                      |
+| ---------------------------------------- | ---------------------------------------------------------------------------- |
+| `docs/phase-1-infrastructure.md`         | KVM, Proxmox, VM, OS, SSH, and host preparation details                      |
+| `docs/phase-2-kubernetes-cluster.md`     | Kubernetes bootstrap, node joining, CNI, storage, and cluster controls       |
+| `docs/phase-3-application-deployment.md` | Application deployment, service exposure, persistence, and validation        |
+| `docs/network-topology.md`               | Management, storage, VIP, and service exposure network design                |
+| `docs/storage-design.md`                 | NFS server, NFS CSI, StorageClass, PVC, and persistence decisions            |
+| `docs/security-hardening.md`             | Infrastructure and Kubernetes hardening controls                             |
+| `docs/headlamp-dashboard.md`             | Dashboard deployment and operational visibility                              |
+| `docs/kube-vip-loadbalancer.md`          | API VIP and service LoadBalancer design                                      |
+| `docs/traefik-api-gateway.md`            | Traefik gateway and Ingress routing                                          |
+| `manifests/observability/elk/README.md`  | Optional ECK-managed Elasticsearch, Kibana, and Filebeat observability notes |
 
 ---
 
 ## Main Manifests
 
-| Manifest                                               | Purpose                                                                         |
-| ------------------------------------------------------ | ------------------------------------------------------------------------------- |
-| `manifests/storage/nfs-storageclass.yaml`              | NFS CSI StorageClass                                                            |
-| `manifests/storage/nfs-pvc-test.yaml`                  | NFS dynamic provisioning test                                                   |
-| `manifests/namespaces/app-namespaces.yaml`             | Application environment namespaces                                              |
-| `manifests/security/cluster-security.yaml`             | LimitRange, ResourceQuota, NetworkPolicies, and PDBs                            |
-| `manifests/kube-vip/kube-vip-services-ds.yaml`         | kube-vip service LoadBalancer advertisement DaemonSet                           |
-| `manifests/kube-vip/kubevip-ip-pool.yaml`              | kube-vip LoadBalancer IP pool ConfigMap                                         |
-| `manifests/traefik/traefik-values.yaml`                | Helm values used for Traefik deployment                                         |
-| `manifests/traefik/traefik-service.yaml`               | Captured Traefik LoadBalancer service                                           |
-| `manifests/traefik/traefik-ingressclass.yaml`          | Captured Traefik IngressClass                                                   |
-| `manifests/observability/elk/eck-stack-values.yaml`    | Helm values for Elasticsearch, Kibana, and Logstash                             |
-| `manifests/observability/elk/filebeat.yaml`            | Filebeat DaemonSet / ECK Beat configuration for Kubernetes logs                 |
-| `manifests/observability/elk/logstash-pipeline.yaml`   | Logstash pipeline for receiving Filebeat events and forwarding to Elasticsearch |
-| `manifests/workloads/kustomization.yaml`               | Kustomize entrypoint for Phase 3 workload deployment                            |
-| `manifests/workloads/app-config.yaml`                  | Application ConfigMap                                                           |
-| `manifests/workloads/app-secret.example.yaml`          | Example Secret manifest                                                         |
-| `manifests/workloads/database.yaml`                    | PostgreSQL StatefulSet, Service, and PVC                                        |
-| `manifests/workloads/backend.yaml`                     | Backend API Deployment and Service                                              |
-| `manifests/workloads/frontend.yaml`                    | Frontend Deployment and Service                                                 |
-| `manifests/workloads/frontend-hpa.yaml`                | HorizontalPodAutoscaler for frontend                                            |
-| `manifests/workloads/networkpolicy-allow-traefik.yaml` | NetworkPolicy allowing Traefik to reach frontend                                |
-| `manifests/workloads/ingress.yaml`                     | Traefik Ingress route for the application                                       |
+| Manifest                                               | Purpose                                                         |
+| ------------------------------------------------------ | --------------------------------------------------------------- |
+| `manifests/storage/nfs-storageclass.yaml`              | NFS CSI StorageClass                                            |
+| `manifests/storage/nfs-pvc-test.yaml`                  | NFS dynamic provisioning test                                   |
+| `manifests/namespaces/app-namespaces.yaml`             | Application environment namespaces                              |
+| `manifests/security/cluster-security.yaml`             | LimitRange, ResourceQuota, NetworkPolicies, and PDBs            |
+| `manifests/kube-vip/kube-vip-services-ds.yaml`         | kube-vip service LoadBalancer advertisement DaemonSet           |
+| `manifests/kube-vip/kubevip-ip-pool.yaml`              | kube-vip LoadBalancer IP pool ConfigMap                         |
+| `manifests/traefik/traefik-values.yaml`                | Helm values used for Traefik deployment                         |
+| `manifests/traefik/traefik-service.yaml`               | Captured Traefik LoadBalancer service                           |
+| `manifests/traefik/traefik-ingressclass.yaml`          | Captured Traefik IngressClass                                   |
+| `manifests/observability/elk/eck-stack-values.yaml`    | Optional ECK Stack Helm values for Elasticsearch and Kibana     |
+| `manifests/observability/elk/filebeat.yaml`            | Optional ECK Beat resource and RBAC for Filebeat log collection |
+| `manifests/workloads/kustomization.yaml`               | Kustomize entrypoint for Phase 3 workload deployment            |
+| `manifests/workloads/app-config.yaml`                  | Application ConfigMap                                           |
+| `manifests/workloads/app-secret.example.yaml`          | Example Secret manifest                                         |
+| `manifests/workloads/database.yaml`                    | PostgreSQL StatefulSet, Service, and PVC                        |
+| `manifests/workloads/backend.yaml`                     | Backend API Deployment and Service                              |
+| `manifests/workloads/frontend.yaml`                    | Frontend Deployment and Service                                 |
+| `manifests/workloads/frontend-hpa.yaml`                | HorizontalPodAutoscaler for frontend                            |
+| `manifests/workloads/networkpolicy-allow-traefik.yaml` | NetworkPolicy allowing Traefik to reach frontend                |
+| `manifests/workloads/ingress.yaml`                     | Traefik Ingress route for the application                       |
 
 ---
 
@@ -293,8 +312,8 @@ Key items completed:
 * SSH access hardened with key-based authentication
 * Kubernetes host prerequisites configured
 * containerd installed and configured
-* swap disabled
-* required kernel modules and sysctl settings applied
+* Swap disabled
+* Required kernel modules and sysctl settings applied
 
 Verification script:
 
@@ -337,7 +356,7 @@ bash scripts/verify-phase2.sh
 
 Phase 3 deploys a lightweight production-style three-tier application on top of the Kubernetes platform.
 
-The application is the Indetechs 3-Tier Operations Task Portal. It provides a simple web interface where tasks can be created, listed, marked complete, and deleted. The application is intentionally lightweight to fit local KVM resource constraints while still demonstrating a complete frontend, backend, and database architecture.
+The application is the **Indetechs 3-Tier Operations Task Portal**. It provides a simple web interface where tasks can be created, listed, marked complete, and deleted. The application is intentionally lightweight to fit local KVM resource constraints while still demonstrating a complete frontend, backend, and database architecture.
 
 | Tier     | Technology          | Kubernetes Object           |
 | -------- | ------------------- | --------------------------- |
@@ -448,16 +467,16 @@ For local browser access, the client machine must resolve the hostname to the Tr
 
 ---
 
-## ELK Application Logging
+## Optional ECK Observability
 
-The project uses an ELK-based design for centralized application logging.
+The project includes an optional ECK-managed observability design for centralized application logging.
 
-| Component     | Purpose                                                                                   |
-| ------------- | ----------------------------------------------------------------------------------------- |
-| Elasticsearch | Stores and indexes application log events                                                 |
-| Logstash      | Receives Filebeat events, applies pipeline processing, and forwards logs to Elasticsearch |
-| Kibana        | Provides log search and visualization                                                     |
-| Filebeat      | Runs on Kubernetes nodes and collects container logs from application pods                |
+| Component     | Purpose                                                | Status                                           |
+| ------------- | ------------------------------------------------------ | ------------------------------------------------ |
+| ECK Operator  | Manages Elastic resources inside Kubernetes            | Prepared                                         |
+| Elasticsearch | Stores and indexes application log events              | Prepared through ECK Stack values                |
+| Kibana        | Provides log search and visualization                  | Prepared, but pending / not-ready during testing |
+| Filebeat      | Collects Kubernetes container logs from node log paths | Prepared as an ECK Beat resource                 |
 
 The initial logging target is the application namespace:
 
@@ -480,7 +499,7 @@ kubernetes.container.name
 kubernetes.labels.app
 ```
 
-Recommended Kibana queries:
+Recommended Kibana queries after the stack is fully running:
 
 ```text
 kubernetes.namespace : "app-prod"
@@ -498,11 +517,21 @@ kubernetes.namespace : "app-prod" and kubernetes.pod.name : ops-frontend*
 kubernetes.namespace : "app-prod" and kubernetes.pod.name : ops-database*
 ```
 
+Important status note:
+
+The ECK observability stack was not fully deployed in the final lab because it exceeded the available CPU and memory on the current KVM host. Kibana remained pending / not-ready during testing. Therefore, ECK/Filebeat observability is documented as prepared optional work rather than a completed verified component.
+
+Detailed deployment and troubleshooting notes are documented in:
+
+```text
+manifests/observability/elk/README.md
+```
+
 ---
 
-## ELK Deployment
+## Optional ECK Observability Deployment
 
-ELK is planned to be deployed using the Elastic Helm repository and ECK-managed Elastic Stack resources.
+The optional observability stack is planned to be deployed using the Elastic Helm repository and the ECK Stack chart.
 
 Add the Elastic Helm repository:
 
@@ -519,7 +548,7 @@ helm install elastic-operator elastic/eck-operator \
   --create-namespace
 ```
 
-Deploy the Elastic Stack values:
+Deploy the ECK Stack values:
 
 ```bash
 helm install elastic-stack elastic/eck-stack \
@@ -534,12 +563,13 @@ Deploy Filebeat log collection:
 kubectl apply -f manifests/observability/elk/filebeat.yaml
 ```
 
-Verify the ELK stack:
+Verify the ECK resources:
 
 ```bash
 kubectl get pods -n elastic-system
 kubectl get pods -n elastic-stack
-kubectl get elasticsearch,kibana,beat,logstash -n elastic-stack
+kubectl get elasticsearch,kibana,beat -n elastic-stack
+kubectl get pvc -n elastic-stack
 ```
 
 Get the Kibana service:
@@ -551,7 +581,13 @@ kubectl get svc -n elastic-stack
 Port-forward Kibana for local access:
 
 ```bash
-kubectl port-forward -n elastic-stack svc/elastic-stack-eck-kibana-kb-http 5601:5601
+kubectl port-forward -n elastic-stack svc/kibana-kb-http 5601:5601
+```
+
+If the service name differs, use the actual Kibana service name shown by:
+
+```bash
+kubectl get svc -n elastic-stack
 ```
 
 Open Kibana locally:
@@ -563,8 +599,14 @@ https://localhost:5601
 Get the default Elasticsearch user password:
 
 ```bash
-kubectl get secret -n elastic-stack elastic-stack-eck-elasticsearch-es-elastic-user \
+kubectl get secret -n elastic-stack elasticsearch-es-elastic-user \
   -o go-template='{{.data.elastic | base64decode}}'
+```
+
+If the secret name differs, list the generated Elastic secrets first:
+
+```bash
+kubectl get secret -n elastic-stack | grep elastic
 ```
 
 ---
@@ -726,13 +768,14 @@ curl -H "Host: ops.indetechs.local" http://192.168.30.200/
 curl -H "Host: ops.indetechs.local" http://192.168.30.200/api/tasks
 ```
 
-ELK logging verification:
+Optional ECK observability verification, when sufficient resources are available:
 
 ```bash
+kubectl get pods -n elastic-system
 kubectl get pods -n elastic-stack
+kubectl get elasticsearch,kibana,beat -n elastic-stack
 kubectl get beat -n elastic-stack
-kubectl logs -n elastic-stack daemonset/filebeat-filebeat
-kubectl port-forward -n elastic-stack svc/elastic-stack-eck-kibana-kb-http 5601:5601
+kubectl get daemonset -n elastic-stack
 ```
 
 Kibana query for application logs:
@@ -752,15 +795,15 @@ Security controls include:
 * OPNsense firewall boundary
 * WireGuard VPN access
 * SSH hardening
-* key-based SSH authentication
-* non-root administrative user
+* Key-based SSH authentication
+* Non-root administrative user
 * Kubernetes namespaces for environment separation
 * ResourceQuota and LimitRange in `app-prod`
-* default-deny NetworkPolicy baseline
-* explicit tier-to-tier NetworkPolicy rules
+* Default-deny NetworkPolicy baseline
+* Explicit tier-to-tier NetworkPolicy rules
 * Traefik ingress/API gateway instead of direct pod access
 * NFS storage traffic isolated on a dedicated storage subnet
-* application logs centralized through Filebeat instead of direct node access
+* Optional application log centralization through Filebeat instead of direct node access
 
 ---
 
@@ -814,9 +857,13 @@ kube-vip was already used for Kubernetes API high availability, so it was extend
 
 Traefik was selected as the API gateway because it integrates cleanly with Kubernetes Ingress resources and can be exposed using a private kube-vip LoadBalancer IP. OPNsense remains the network edge firewall and VPN boundary, while Traefik handles HTTP routing inside the Kubernetes platform.
 
-### ELK Logging
+### ECK Observability
 
-ELK was selected for centralized application logging because it provides log ingestion, indexing, search, and visualization in one stack. Filebeat is suitable for Kubernetes node-level log collection because it can run as a DaemonSet and enrich container logs with Kubernetes metadata.
+ECK-managed Elasticsearch, Kibana, and Filebeat were selected for the optional centralized logging design because they provide Kubernetes-native log collection, indexing, search, and visualization.
+
+Filebeat is suitable for Kubernetes node-level log collection because it can run as a DaemonSet-style workload, read Kubernetes pod logs from node log paths, enrich events with Kubernetes metadata, and forward application logs into Elasticsearch.
+
+In this submission, ECK observability is documented as an optional extension rather than a completed verified component because the local KVM host did not have enough spare CPU and memory to run the full observability layer reliably. Kibana remained pending / not-ready during testing.
 
 ---
 
@@ -830,7 +877,23 @@ Traefik is deployed as the cluster API gateway using a kube-vip LoadBalancer IP.
 
 The Phase 2 NetworkPolicies and Pod Disruption Budgets were created in advance for the three-tier application. Their runtime behavior is validated in Phase 3 after deploying frontend, backend, and database pods using the expected labels.
 
-ELK logging is treated as an optional extension phase. Filebeat should collect application container logs from the Kubernetes nodes and forward them to Logstash for processing before indexing in Elasticsearch.
+ECK observability is treated as an optional extension phase. The prepared design deploys Elasticsearch and Kibana through the ECK Stack Helm chart, and Filebeat is deployed as an ECK Beat resource to collect application logs from Kubernetes nodes.
+
+---
+
+## Known Limitations
+
+The mandatory core phases have been completed and verified. The following limitations remain:
+
+* The NFS server is a single storage server and is not fully redundant.
+* Full VM provisioning is documented, but not yet fully automated with Terraform or Ansible.
+* ECK observability was prepared but not completed because the local host did not have enough available CPU and memory.
+* Kibana remained pending / not-ready during ECK observability testing.
+* Scheduled PostgreSQL backup automation is not yet implemented.
+* RTO and RPO targets are not yet formally defined or tested.
+* Load testing and performance analysis are not yet complete.
+* CI/CD and automated rollback are planned but not yet implemented.
+* More detailed operational runbooks are planned for node replacement, scaling, backup, and recovery.
 
 ---
 
@@ -839,8 +902,7 @@ ELK logging is treated as an optional extension phase. Filebeat should collect a
 The mandatory core phases have been completed. The following items are planned as future improvements under the optional extension phases:
 
 * Add Terraform or Ansible automation for VM provisioning and full cluster rebuilds
-* Complete ELK deployment for centralized application logging
-* Add Filebeat filtering so only `app-prod` logs are forwarded initially
+* Complete ECK-managed Elasticsearch, Kibana, and Filebeat validation on a larger lab host
 * Add scheduled PostgreSQL backup automation
 * Define and test RTO/RPO targets
 * Add load testing and performance analysis
@@ -848,6 +910,3 @@ The mandatory core phases have been completed. The following items are planned a
 * Add CI/CD for automated image builds and Kubernetes deployment
 * Add automated rollback for failed deployments
 * Add more detailed operational runbooks for node replacement, scaling, backup, and recovery
-
-```
-```
