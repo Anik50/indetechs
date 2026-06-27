@@ -33,7 +33,7 @@ Admin/VPN Client
 | Component | Kubernetes object | Replicas | Port | Storage |
 |---|---:|---:|---:|---|
 | Frontend | Deployment | 2 | 8080 | None |
-| Backend | Deployment | 2 | 8080 | None |
+| Backend | Deployment | 1 | 8080 | None |
 | Database | StatefulSet | 1 | 5432 | NFS CSI PVC |
 
 ## Container image strategy

@@ -303,7 +303,8 @@ Helm is used for platform-level services where chart-based lifecycle management 
 │   ├── namespaces/
 │   │   └── app-namespaces.yaml
 │   ├── pdb/
-│   │   └── .gitkeep
+│   │   ├── .gitkeep
+│   │   └── app-prod-pdbs.yaml
 │   ├── security/
 │   │   └── cluster-security.yaml
 │   ├── storage/
