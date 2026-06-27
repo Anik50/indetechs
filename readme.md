@@ -8,6 +8,8 @@ The environment is deployed on **Proxmox VE using KVM/QEMU virtual machines**. *
 
 The mandatory core phases are complete. Optional observability work using **ECK-managed Elasticsearch, Kibana, and Filebeat** was prepared and partially validated. Elasticsearch reached a running state, while Kibana was scheduled and connected to Elasticsearch but restarted due to Node.js heap memory exhaustion on the resource-limited KVM host.
 
+**Proxmox Backup Server (PBS)** is installed as the infrastructure backup platform for VM-level backup planning, retention, restore testing, and future DR backup synchronization. Application-level PostgreSQL backup automation is still planned separately.
+
 Optional disaster recovery, CI/CD, private registry, and infrastructure monitoring designs are documented as future production-style extensions.
 
 ---
@@ -19,7 +21,7 @@ Optional disaster recovery, CI/CD, private registry, and infrastructure monitori
 | Phase 1  | KVM infrastructure setup                                                                                                           | Complete              |
 | Phase 2  | Kubernetes cluster setup, storage, networking, and security controls                                                               | Complete              |
 | Phase 3  | Three-tier application deployment with Traefik, kube-vip LoadBalancer, HPA, NetworkPolicies, and NFS-backed PostgreSQL persistence | Complete              |
-| Phase 4+ | Optional automation, ECK observability, DR planning, CI/CD, testing, and deeper operational runbooks                               | Partial / Future work |
+| Phase 4+ | Optional automation, ECK observability, DR planning, CI/CD, testing, backup planning, and deeper operational runbooks              | Partial / Future work |
 
 ---
 
@@ -43,7 +45,8 @@ Optional disaster recovery, CI/CD, private registry, and infrastructure monitori
 | Observability             | Kubernetes application log stack                           | Partial                            | ECK Operator and Elasticsearch deployed; Kibana connected but restarted due to Node.js heap memory exhaustion.                   |
 | Observability             | Filebeat log collection                                    | Prepared                           | Filebeat ECK Beat manifest is included for Kubernetes log collection.                                                            |
 | Infrastructure monitoring | Hardware, VM, and network monitoring                       | Future work                        | LibreNMS is planned for Proxmox, OPNsense, Kubernetes VMs, NFS VM, SNMP monitoring, and alerting.                                |
-| Backup / DR               | PostgreSQL backup, restore, RTO, RPO                       | Documented / Future implementation | DR architecture and runbook are documented; implementation and testing are future work.                                          |
+| Backup                    | Infrastructure backup platform                             | Partial / Prepared                 | Proxmox Backup Server is installed for VM backup planning, retention, and future restore validation.                             |
+| Backup / DR               | PostgreSQL backup, restore, RTO, RPO                       | Documented / Future implementation | DR architecture and runbook are documented; application-level backup automation and DR testing are future work.                  |
 | DR Planning               | Disaster recovery architecture and failover runbook        | Documented / Future implementation | Independent Primary/DR design documented with async database replication, PBS sync, Cloudflare failover, and break-glass access. |
 | Automation                | Full VM and cluster rebuild automation                     | Future work                        | Helper scripts exist, but full Terraform/Ansible automation is not complete.                                                     |
 | CI/CD                     | Automated image build and deployment                       | Future work                        | Jenkins pipeline automation is planned.                                                                                          |
@@ -196,6 +199,7 @@ diagrams/dr-architecture.drawio
 | `kubeworker-2` |     `192.168.30.244` | `192.168.32.22` | Kubernetes worker                 |
 | `nfs`          |     `192.168.30.235` | `192.168.32.10` | Dedicated NFS storage server      |
 | `opnsense`     | Environment-specific |             N/A | Router, firewall, and VPN gateway |
+| `pbs`          | Environment-specific |             N/A | Proxmox Backup Server             |
 
 ---
 
@@ -221,6 +225,7 @@ diagrams/dr-architecture.drawio
 | Traefik LoadBalancer IP          | `192.168.30.200`                                                                                                    |
 | Storage backend                  | NFS + NFS CSI                                                                                                       |
 | Default StorageClass             | `nfs-csi`                                                                                                           |
+| Backup platform                  | Proxmox Backup Server installed for infrastructure-level backup planning and future restore validation              |
 | Dashboard                        | Headlamp                                                                                                            |
 | Metrics                          | Metrics Server                                                                                                      |
 | Application logging              | Optional ECK-managed Elasticsearch, Kibana, and Filebeat prepared; partially validated due to local resource limits |
@@ -233,23 +238,24 @@ The control-plane nodes use the standard kubeadm stacked-etcd topology. This giv
 
 ## Platform Components
 
-| Component                     | Namespace / Location     | Deployment Method                     | Purpose                                                   |
-| ----------------------------- | ------------------------ | ------------------------------------- | --------------------------------------------------------- |
-| Canal CNI                     | `kube-system`            | Kubernetes manifests                  | Pod networking and NetworkPolicy support                  |
-| kube-vip API VIP              | Control-plane static pod | Static pod                            | Highly available Kubernetes API virtual IP                |
-| kube-vip service LoadBalancer | `kube-system`            | Kubernetes manifests                  | LoadBalancer IP advertisement for services                |
-| kube-vip cloud provider       | `kube-system`            | Kubernetes manifests                  | Assigns service LoadBalancer IPs from the configured pool |
-| NFS CSI Driver                | `kube-system`            | Helm                                  | Dynamic provisioning of NFS-backed PersistentVolumes      |
-| Traefik                       | `traefik`                | Helm                                  | HTTP application gateway and Ingress controller           |
-| Headlamp                      | `headlamp`               | Helm                                  | Kubernetes dashboard visibility                           |
-| Metrics Server                | `kube-system`            | Kubernetes manifests / cluster add-on | Resource metrics for HPA and operational checks           |
-| ECK Operator                  | `elastic-system`         | Helm                                  | Optional operator for managing Elastic Stack resources    |
-| Elasticsearch                 | `elastic-stack`          | ECK Stack Helm values                 | Optional application log indexing and storage             |
-| Kibana                        | `elastic-stack`          | ECK Stack Helm values                 | Optional log search and visualization                     |
-| Filebeat                      | `elastic-stack`          | ECK Beat resource / DaemonSet         | Optional Kubernetes application log collection from nodes |
-| Jenkins                       | External / planned       | Docker                                | Planned CI/CD automation server                           |
-| Harbor                        | External / planned       | Docker Compose / Harbor installer     | Planned private image registry and vulnerability scanning |
-| LibreNMS                      | External / planned       | Future implementation                 | Planned infrastructure monitoring and alerting            |
+| Component                     | Namespace / Location      | Deployment Method                     | Purpose                                                                 |
+| ----------------------------- | ------------------------- | ------------------------------------- | ----------------------------------------------------------------------- |
+| Canal CNI                     | `kube-system`             | Kubernetes manifests                  | Pod networking and NetworkPolicy support                                |
+| kube-vip API VIP              | Control-plane static pod  | Static pod                            | Highly available Kubernetes API virtual IP                              |
+| kube-vip service LoadBalancer | `kube-system`             | Kubernetes manifests                  | LoadBalancer IP advertisement for services                              |
+| kube-vip cloud provider       | `kube-system`             | Kubernetes manifests                  | Assigns service LoadBalancer IPs from the configured pool               |
+| NFS CSI Driver                | `kube-system`             | Helm                                  | Dynamic provisioning of NFS-backed PersistentVolumes                    |
+| Proxmox Backup Server         | External / infrastructure | Installed                             | VM backup platform for retention planning, restore testing, and DR sync |
+| Traefik                       | `traefik`                 | Helm                                  | HTTP application gateway and Ingress controller                         |
+| Headlamp                      | `headlamp`                | Helm                                  | Kubernetes dashboard visibility                                         |
+| Metrics Server                | `kube-system`             | Kubernetes manifests / cluster add-on | Resource metrics for HPA and operational checks                         |
+| ECK Operator                  | `elastic-system`          | Helm                                  | Optional operator for managing Elastic Stack resources                  |
+| Elasticsearch                 | `elastic-stack`           | ECK Stack Helm values                 | Optional application log indexing and storage                           |
+| Kibana                        | `elastic-stack`           | ECK Stack Helm values                 | Optional log search and visualization                                   |
+| Filebeat                      | `elastic-stack`           | ECK Beat resource / DaemonSet         | Optional Kubernetes application log collection from nodes               |
+| Jenkins                       | External / planned        | Docker                                | Planned CI/CD automation server                                         |
+| Harbor                        | External / planned        | Docker Compose / Harbor installer     | Planned private image registry and vulnerability scanning               |
+| LibreNMS                      | External / planned        | Future implementation                 | Planned infrastructure monitoring and alerting                          |
 
 Helm is used for platform-level services where chart-based lifecycle management is helpful. Application workloads are deployed with Kubernetes manifests and Kustomize so the workload configuration remains transparent and easy to review.
 
@@ -332,9 +338,9 @@ Helm is used for platform-level services where chart-based lifecycle management 
 │   ├── full-cluster-metrics-server.png
 │   ├── helm-chart-list.png
 │   ├── headlamp-workloads.png
-│   ├── prod-namespace.png
 │   ├── nodes-cluster-ready.png
-│   ├── storage_class_csi.png
+│   ├── prod-namespace.png
+│   ├── storage-class-csi.png
 │   ├── storage-pvc-pv.png
 │   └── traefik-kubevip-loadbalancer.png
 └── scripts/
@@ -411,6 +417,7 @@ Key items completed:
 * containerd installed and configured
 * Swap disabled
 * Required kernel modules and sysctl settings applied
+* Proxmox Backup Server installed as the infrastructure backup platform
 
 Verification script:
 
@@ -636,7 +643,7 @@ manifests/observability/elk/README.md
 
 ## Optional ECK Observability Deployment
 
-The optional observability stack is planned to be deployed using the Elastic Helm repository and the ECK Stack chart.
+The optional observability stack was prepared using the Elastic Helm repository and the ECK Stack chart.
 
 Add the Elastic Helm repository:
 
@@ -709,7 +716,7 @@ Open Kibana locally:
 https://localhost:5601
 ```
 
-Get the default Elasticsearch user password:
+Retrieve the generated Elasticsearch `elastic` user password:
 
 ```bash
 kubectl get secret -n elastic-stack elasticsearch-es-elastic-user \
@@ -921,6 +928,7 @@ Security controls include:
 * Traefik ingress/API gateway instead of direct pod access
 * NFS storage traffic isolated on a dedicated storage subnet
 * Optional application log centralization through Filebeat instead of direct node access
+* PBS used as an infrastructure backup platform instead of relying only on VM snapshots
 
 ---
 
@@ -942,6 +950,40 @@ The NFS StorageClass uses dynamic provisioning and a Retain reclaim policy.
 
 ---
 
+## Backup Notes
+
+Proxmox Backup Server is installed as the infrastructure backup platform for the lab. It is intended to support VM backup, retention policies, restore testing, and future synchronization to a DR-side PBS target.
+
+PBS is useful for infrastructure-level backup and recovery of virtual machines, but it does not replace database-aware PostgreSQL backups. Application-level PostgreSQL backup automation is still planned separately so that database recovery can be tested independently from VM recovery.
+
+Planned backup model:
+
+```text
+Proxmox VMs
+  -> Proxmox Backup Server
+  -> Retention policy
+  -> Restore testing
+  -> Future DR-side PBS synchronization
+
+PostgreSQL
+  -> Database-aware backup automation
+  -> Restore validation
+  -> Future RPO/RTO testing
+```
+
+Current backup status:
+
+| Item                                        | Status             |
+| ------------------------------------------- | ------------------ |
+| Proxmox Backup Server installed             | Complete           |
+| VM-level backup platform prepared           | Partial / Prepared |
+| Scheduled PBS backup jobs                   | Future work        |
+| PBS restore validation                      | Future work        |
+| DR-side PBS synchronization                 | Future work        |
+| PostgreSQL database-aware backup automation | Future work        |
+
+---
+
 ## Design Decisions and Trade-offs
 
 ### Ubuntu Server 24.04 LTS
@@ -951,6 +993,12 @@ Ubuntu Server 24.04 LTS was selected because it provides a stable, long-term-sup
 ### Proxmox VE with KVM/QEMU
 
 Proxmox VE was used as the KVM/QEMU virtualization platform because it provides a practical way to manage local virtual machines, virtual networks, bridges, storage, snapshots, and console access while still using KVM underneath.
+
+### Proxmox Backup Server
+
+Proxmox Backup Server was installed as the backup platform for the virtual infrastructure. It provides a production-style foundation for VM backup, retention management, restore testing, and future DR backup synchronization.
+
+In the current lab, PBS is treated as an installed backup platform and future improvement path. Scheduled PBS backup jobs, DR-side PBS synchronization, and full restore testing are planned work. Application-level PostgreSQL backup automation is also planned separately because VM-level backup does not replace database-aware backups.
 
 ### OPNsense and WireGuard
 
@@ -1012,11 +1060,13 @@ Traefik is deployed as the cluster API gateway using a kube-vip LoadBalancer IP.
 
 The Phase 2 NetworkPolicies and Pod Disruption Budgets were created in advance for the three-tier application. Their runtime behavior is validated in Phase 3 after deploying frontend, backend, and database pods using the expected labels.
 
+Proxmox Backup Server is installed as the infrastructure backup platform. It is intended to support VM backup, retention policies, restore testing, and future synchronization to a DR-side PBS target. Application-level PostgreSQL backup automation is still planned separately because infrastructure backups do not replace database-aware backups.
+
 ECK observability is treated as an optional extension phase. The prepared design deploys Elasticsearch and Kibana through the ECK Stack Helm chart, and Filebeat is deployed as an ECK Beat resource to collect application logs from Kubernetes nodes.
 
-LibreNMS is planned as a future infrastructure monitoring and alerting layer for the Proxmox host, OPNsense, Kubernetes VMs, and the NFS storage VM. This would complement ECK/Filebeat by monitoring host, device, network interface, disk, and reachability health outside Kubernetes.
+LibreNMS is planned as a future infrastructure monitoring and alerting layer for the Proxmox host, OPNsense, Kubernetes VMs, PBS, and the NFS storage VM. This would complement ECK/Filebeat by monitoring host, device, network interface, disk, backup platform, and reachability health outside Kubernetes.
 
-Disaster recovery is documented as a target future architecture rather than a completed implementation. The DR plan describes independent Primary and DR sites, async database replication, backup synchronization, Cloudflare failover, break-glass access, and failover/failback runbooks.
+Disaster recovery is documented as a target future architecture rather than a completed implementation. The DR plan describes independent Primary and DR sites, async database replication, PBS backup synchronization, Cloudflare failover, break-glass access, and failover/failback runbooks.
 
 ---
 
@@ -1131,7 +1181,7 @@ Important values to set:
 ```yaml
 hostname: harbor.indetechs.local
 
-harbor_admin_password: ChangeMeStrongPassword
+harbor_admin_password: <set-strong-harbor-admin-password>
 
 data_volume: /data
 ```
@@ -1183,23 +1233,23 @@ docker login harbor.indetechs.local
 Tag an application image for Harbor:
 
 ```bash
-docker tag docker.io/anik50/ops-backend:v3 harbor.indetechs.local/indetechs/ops-backend:v3
+docker tag docker.io/anik50/indetechs-ops-backend:v3 harbor.indetechs.local/indetechs/indetechs-ops-backend:v3
 ```
 
 Push the image:
 
 ```bash
-docker push harbor.indetechs.local/indetechs/ops-backend:v3
+docker push harbor.indetechs.local/indetechs/indetechs-ops-backend:v3
 ```
 
 The same approach can be used for the frontend and database images:
 
 ```bash
-docker tag docker.io/anik50/ops-frontend:v3 harbor.indetechs.local/indetechs/ops-frontend:v3
-docker tag docker.io/anik50/ops-database:v3 harbor.indetechs.local/indetechs/ops-database:v3
+docker tag docker.io/anik50/indetechs-ops-frontend:v3 harbor.indetechs.local/indetechs/indetechs-ops-frontend:v3
+docker tag docker.io/anik50/indetechs-ops-database:v3 harbor.indetechs.local/indetechs/indetechs-ops-database:v3
 
-docker push harbor.indetechs.local/indetechs/ops-frontend:v3
-docker push harbor.indetechs.local/indetechs/ops-database:v3
+docker push harbor.indetechs.local/indetechs/indetechs-ops-frontend:v3
+docker push harbor.indetechs.local/indetechs/indetechs-ops-database:v3
 ```
 
 After images are pushed, Harbor can scan them for vulnerabilities before they are used in Kubernetes manifests.
@@ -1228,6 +1278,8 @@ The mandatory core phases have been completed and verified. The following limita
 
 * The NFS server is a single storage server and is not fully redundant.
 * Full VM provisioning is documented, but not yet fully automated with Terraform or Ansible.
+* PBS is installed, but scheduled PBS backup jobs, retention policy validation, and restore testing are not yet fully documented.
+* PBS restore testing and DR-side PBS synchronization are planned but not yet fully validated.
 * ECK observability was prepared and partially validated, with Elasticsearch running successfully.
 * Kibana was scheduled and connected to Elasticsearch, but restarted due to Node.js heap memory exhaustion on the resource-limited KVM host.
 * Full Filebeat-to-Elasticsearch validation should be completed on a larger host or dedicated observability worker node.
@@ -1249,11 +1301,14 @@ The mandatory core phases have been completed and verified. The following limita
 The mandatory core phases have been completed. The following items are planned as future improvements under the optional extension phases:
 
 * Add Terraform or Ansible automation for VM provisioning and full cluster rebuilds
+* Configure scheduled PBS backup jobs, retention policies, and restore validation
+* Add DR-side PBS synchronization for off-site backup copies
+* Add database-aware PostgreSQL backups in addition to VM-level PBS backups
 * Complete ECK-managed Elasticsearch, Kibana, and Filebeat validation on a larger lab host
 * Implement the documented DR plan with a separate DR site, async database replication, backup synchronization, Cloudflare failover, and tested failover/failback runbooks
 * Add scheduled PostgreSQL backup automation
 * Define and test final RTO/RPO targets
-* Add LibreNMS for Proxmox, OPNsense, Kubernetes VM, NFS VM, SNMP monitoring, and infrastructure alerting
+* Add LibreNMS for Proxmox, OPNsense, Kubernetes VM, PBS, NFS VM, SNMP monitoring, and infrastructure alerting
 * Add Jenkins for CI/CD pipeline automation
 * Add Harbor as a private container registry with vulnerability scanning
 * Build a Jenkins pipeline to build, scan, push, and deploy application images through Harbor
